@@ -1,17 +1,18 @@
 # Hospital Management System
 
-A comprehensive hospital management system built with Next.js 14, TypeScript, and Appwrite.
+A modern, comprehensive hospital management system built with Next.js 14, TypeScript, and Appwrite. Features real-time updates, responsive design, and complete hospital workflow management.
 
-## Features
+## ✨ Key Features
 
-- **Patient Management**: Complete patient records with medical history
-- **Appointment Scheduling**: Manage appointments and room assignments
-- **Prescription Management**: Digital prescriptions with medication tracking
-- **Inventory Management**: Medication stock tracking with batch management
-- **Billing System**: Invoice generation and payment tracking
-- **Contact Management**: Supplier and contact information
-- **Role-Based Access Control**: Secure user management with permissions
-- **Dashboard**: Real-time system overview and statistics
+- **🏥 Patient Management**: Complete patient records with medical history and prescriptions
+- **📅 Appointment Scheduling**: Manage appointments with providers and room assignments
+- **💊 Prescription Management**: Digital prescriptions with medication tracking and invoice conversion
+- **📦 Inventory Management**: Medication stock tracking with batch management and alerts
+- **💰 Billing System**: Invoice generation, payment tracking, and PDF export
+- **👥 User Management**: Role-based access control with admin panel
+- **📊 Real-time Dashboard**: Live system overview with statistics and monitoring
+- **🎨 Modern UI**: Responsive design with dark/light theme support
+- **⚡ Real-time Updates**: Instant company name updates and live data synchronization
 
 ## Tech Stack
 
@@ -28,12 +29,12 @@ A comprehensive hospital management system built with Next.js 14, TypeScript, an
 - Appwrite account and project
 - Git
 
-## Installation
+## 🚀 Quick Start
 
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd Hospital_V1
+cd hospital-management-system
 ```
 
 2. **Install dependencies**
@@ -46,42 +47,35 @@ npm install
    cp ENV.sample .env.local
    ```
    
-   Die `.env.local` Datei ist bereits mit den notwendigen Appwrite-Konfigurationen vorbereitet. Die Anwendung verwendet eine vorkonfigurierte Appwrite-Instanz.
+   The `.env.local` file contains pre-configured Appwrite settings. The application uses a pre-configured Appwrite instance.
 
-4. **Database seeding (optional)**
-   ```bash
-   npx tsx prisma/seed.ts
-   ```
-   
-   Dies erstellt Standard-Rollen, System-Einstellungen und einen Admin-Benutzer.
-
-5. **Run the development server**
+4. **Run the development server**
 ```bash
 npm run dev
 ```
 
-6. **Open your browser**
+5. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Standard-Login
+## 🔐 Default Login
 
-Die Anwendung ist bereits mit einem Standard-Admin-Benutzer konfiguriert:
+The application comes with a pre-configured admin user:
 - **Email**: `admin@hospital.ch`
 - **Password**: `password`
 
-## System-Status
+## 🎯 System Status
 
-✅ **Die Anwendung ist startbereit!**
+✅ **Ready to use!**
 
-Die Anwendung verwendet eine vorkonfigurierte Appwrite-Instanz mit allen notwendigen Datenbanken und Sammlungen. Alle Abhängigkeiten sind installiert und die Umgebungsvariablen sind konfiguriert.
+The application uses a pre-configured Appwrite instance with all necessary databases and collections. All dependencies are installed and environment variables are configured.
 
-### Verfügbare Rollen
+### Available Roles
 
-Das System enthält folgende Standard-Rollen:
-- **Admin**: Vollzugriff auf das System
-- **Doctor**: Medizinisches Personal mit Patienten- und Rezeptzugriff
-- **Nurse**: Pflegepersonal mit eingeschränktem Patienten-Zugriff
-- **Receptionist**: Empfangspersonal für Termine und Patienten
+The system includes the following standard roles:
+- **Admin**: Full system access
+- **Doctor**: Medical staff with patient and prescription access
+- **Nurse**: Nursing staff with limited patient access
+- **Receptionist**: Front desk staff for appointments and patients
 
 ## Project Structure
 
