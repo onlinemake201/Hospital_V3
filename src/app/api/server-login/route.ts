@@ -70,11 +70,11 @@ export async function POST(request: Request) {
       
       // Determine domain based on environment
       const isProduction = process.env.NODE_ENV === 'production';
-      const domain = isProduction ? undefined : 'localhost'; // undefined = current domain
+      const domain = isProduction ? 'hostpital-managment-system.com' : 'localhost';
       
       console.log('🍪 Cookie configuration:', {
         isProduction,
-        domain: domain || 'current domain',
+        domain: domain,
         projectId
       });
       
@@ -87,6 +87,11 @@ export async function POST(request: Request) {
       
       nextResponse.headers.append('Set-Cookie', 
         `a_session_${projectId}_legacy=${sessionSecret}; ${cookieOptions}`
+      );
+      
+      // Also set cookies without domain for compatibility
+      nextResponse.headers.append('Set-Cookie', 
+        `a_session=${sessionSecret}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax`
       );
       
       return nextResponse;
