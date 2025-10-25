@@ -19,7 +19,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 
     // Validate status values
-    const validStatuses = ['paid', 'partial', 'sent', 'overdue', 'pending']
+    const validStatuses = ['draft', 'sent', 'paid', 'overdue']
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ 
         error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') 

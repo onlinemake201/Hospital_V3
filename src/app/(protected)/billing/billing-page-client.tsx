@@ -175,9 +175,8 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
           )
         )
         
-        // Also refresh from server to ensure consistency
-        console.log('🔄 Refreshing from server...')
-        await fetchInvoices()
+        // Don't refresh from server immediately to prevent status revert
+        console.log('✅ Status updated locally, skipping server refresh to prevent revert')
       } else {
         const error = await response.json()
         console.error('❌ Status change failed:', error)
@@ -341,17 +340,17 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     // Status für jede Kundengruppe bestimmen - basierend auf Invoice-Status, nicht Balance
     Object.values(grouped).forEach(group => {
       const hasOverdue = group.invoices.some(inv => inv.status === 'overdue')
-      const hasPartial = group.invoices.some(inv => inv.status === 'partial')
       const allPaid = group.invoices.every(inv => inv.status === 'paid')
-      const hasSent = group.invoices.some(inv => inv.status === 'sent' || inv.status === 'pending')
+      const hasSent = group.invoices.some(inv => inv.status === 'sent')
+      const hasDraft = group.invoices.some(inv => inv.status === 'draft')
       
       if (hasOverdue) {
         group.status = 'overdue'
-      } else if (hasPartial) {
-        group.status = 'partial'
       } else if (allPaid) {
         group.status = 'paid'
       } else if (hasSent) {
+        group.status = 'outstanding'
+      } else if (hasDraft) {
         group.status = 'outstanding'
       } else {
         group.status = 'outstanding'
@@ -712,18 +711,17 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                                     changeInvoiceStatus(invoice.$id, e.target.value)
                                   }}
                                   data-invoice-id={invoice.$id}
-                                  className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                    invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800' :
-                                    invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-800' :
-                                    invoice.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800' :
-                                    invoice.status === 'sent' || invoice.status === 'pending' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800' :
-                                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800'
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
+                                    invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
+                                    invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
+                                    invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
+                                    invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
+                                    'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
                                   }`}
                                 >
+                                  <option value="draft">Draft</option>
+                                  <option value="sent">Sent</option>
                                   <option value="paid">Paid</option>
-                                  <option value="partial">Partially Paid</option>
-                                  <option value="sent">Outstanding</option>
-                                  <option value="pending">Pending</option>
                                   <option value="overdue">Overdue</option>
                                 </select>
                               </td>
