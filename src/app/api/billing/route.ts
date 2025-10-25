@@ -50,16 +50,36 @@ export async function updateInvoiceStatus(invoice: any) {
     try {
       console.log('📝 Updating invoice status:', invoice.$id, 'from', invoice.status, 'to', newStatus)
       
-      await databases.updateDocument(
+      // Validate that we have all required data
+      if (!invoice.$id) {
+        throw new Error('Invoice ID is missing')
+      }
+      
+      if (!process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID) {
+        throw new Error('Database ID is not configured')
+      }
+      
+      if (!COLLECTIONS.INVOICES) {
+        throw new Error('Invoices collection is not configured')
+      }
+      
+      const updateResult = await databases.updateDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.INVOICES,
         invoice.$id,
         { status: newStatus }
       )
       
-      console.log('✅ Status updated successfully')
+      console.log('✅ Status updated successfully:', updateResult)
+      
+      // Verify the update was successful
+      if (updateResult.status !== newStatus) {
+        console.warn('⚠️ Status update verification failed - expected:', newStatus, 'got:', updateResult.status)
+      }
+      
     } catch (error) {
       console.error('❌ Error updating invoice status:', error)
+      throw error // Re-throw to trigger retry mechanism
     }
   } else {
     console.log('⏭️ Status unchanged, skipping update')

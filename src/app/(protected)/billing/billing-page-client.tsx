@@ -96,6 +96,30 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     return () => clearInterval(interval)
   }, [])
 
+  // Manual status update function for specific invoice
+  const updateInvoiceStatus = async (invoiceId: string) => {
+    try {
+      console.log('🔄 Manual status update for invoice:', invoiceId)
+      
+      const response = await fetch(`/api/billing/${invoiceId}/update-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Status updated manually:', result)
+        
+        // Refresh the invoices list to show updated status
+        await fetchInvoices()
+      } else {
+        console.error('❌ Manual status update failed:', response.status)
+      }
+    } catch (error) {
+      console.error('❌ Error updating invoice status:', error)
+    }
+  }
+
   const fetchInvoices = async (showLoading = false) => {
     if (showLoading) {
       setLoading(true)

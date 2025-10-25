@@ -158,17 +158,39 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     console.log('✅ Invoice updated successfully:', updatedInvoice)
 
-    // Trigger status update after invoice update
-    try {
-      const { updateInvoiceStatus } = await import('@/app/api/billing/route')
-      const newStatus = await updateInvoiceStatus(updatedInvoice)
-      console.log('🔄 Status updated after invoice edit:', newStatus)
-    } catch (statusError) {
-      console.warn('Could not update status after invoice edit:', statusError)
-      // Continue anyway - invoice is still updated
+    // Trigger status update after invoice update with retry mechanism
+    let statusUpdateAttempts = 0
+    const maxRetries = 3
+    
+    while (statusUpdateAttempts < maxRetries) {
+      try {
+        console.log(`🔄 Attempting status update (attempt ${statusUpdateAttempts + 1}/${maxRetries})`)
+        
+        // Import and call the status update function
+        const { updateInvoiceStatus } = await import('@/app/api/billing/route')
+        const newStatus = await updateInvoiceStatus(updatedInvoice)
+        
+        console.log('✅ Status updated after invoice edit:', newStatus)
+        break // Success, exit retry loop
+        
+      } catch (statusError) {
+        statusUpdateAttempts++
+        console.warn(`❌ Status update attempt ${statusUpdateAttempts} failed:`, statusError)
+        
+        if (statusUpdateAttempts >= maxRetries) {
+          console.error('❌ All status update attempts failed, but invoice was still updated')
+          // Continue anyway - invoice is still updated
+        } else {
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+      }
     }
 
-    return NextResponse.json({ invoice: updatedInvoice })
+    return NextResponse.json({ 
+      invoice: updatedInvoice,
+      statusUpdated: statusUpdateAttempts < maxRetries // Indicate if status was successfully updated
+    })
   } catch (error: any) {
     console.error('Error updating invoice:', error)
     const appwriteError = handleAppwriteError(error)
