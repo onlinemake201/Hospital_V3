@@ -23,16 +23,16 @@ export default function Error({
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-            Etwas ist schiefgelaufen
+            Something went wrong
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mb-6">
-            Es ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.
+            An unexpected error occurred. Please try again.
           </p>
           <button
             onClick={reset}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
           >
-            Erneut versuchen
+            Try again
           </button>
         </div>
       </div>
