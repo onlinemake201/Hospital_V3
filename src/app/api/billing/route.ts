@@ -20,15 +20,35 @@ export async function updateInvoiceStatus(invoice: any) {
   
   let newStatus = invoice.status
   
-  // Automatische Statuslogik - Reihenfolge ist wichtig!
-  if (balance <= 0) {
-    newStatus = 'paid'
-  } else if (balance < amount) {
-    newStatus = 'partial'
-  } else if (today > dueDate) {
-    newStatus = 'overdue'
+  // Prüfen ob Status kürzlich manuell geändert wurde (innerhalb der letzten 5 Minuten)
+  const lastUpdate = new Date(invoice.$updatedAt)
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+  const wasRecentlyUpdated = lastUpdate > fiveMinutesAgo
+  
+  // Wenn Status kürzlich geändert wurde, nur bei kritischen Änderungen aktualisieren
+  if (wasRecentlyUpdated) {
+    console.log('⏰ Invoice recently updated, limiting automatic status changes:', {
+      invoiceId: invoice.$id,
+      lastUpdate: lastUpdate.toISOString(),
+      currentStatus: invoice.status
+    })
+    
+    // Nur kritische Änderungen: Balance = 0 → 'paid'
+    if (balance <= 0 && invoice.status !== 'paid') {
+      newStatus = 'paid'
+    }
+    // Ansonsten Status beibehalten
   } else {
-    newStatus = 'sent' // Frontend expects 'sent' for outstanding invoices
+    // Normale automatische Statuslogik für ältere Updates
+    if (balance <= 0) {
+      newStatus = 'paid'
+    } else if (balance < amount) {
+      newStatus = 'partial'
+    } else if (today > dueDate) {
+      newStatus = 'overdue'
+    } else {
+      newStatus = 'sent'
+    }
   }
   
   // Nur loggen wenn sich der Status ändert
@@ -44,7 +64,8 @@ export async function updateInvoiceStatus(invoice: any) {
       today: today.toISOString(),
       isOverdue: today > dueDate,
       isPaid: balance <= 0,
-      isPartial: balance < amount && balance > 0
+      isPartial: balance < amount && balance > 0,
+      wasRecentlyUpdated: wasRecentlyUpdated
     })
   }
   
