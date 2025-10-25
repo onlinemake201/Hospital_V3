@@ -77,13 +77,34 @@ export async function middleware(request: NextRequest) {
     return response
   }
   
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    '/',
+    '/login',
+    '/demo',
+    '/not-found'
+  ];
+  
+  // Check if current path is public
+  const isPublicRoute = publicRoutes.includes(pathname) || 
+                       pathname.startsWith('/demo') ||
+                       pathname === '/not-found';
+  
   // If no session cookie and trying to access protected route, redirect to login
-  if (!sessionCookie && pathname !== '/') {
+  if (!sessionCookie && !isPublicRoute) {
+    console.log('🚫 Access denied - no session cookie for protected route:', pathname);
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // If user is on root and has session, redirect to dashboard
   if (pathname === '/' && sessionCookie) {
+    console.log('🔄 Redirecting authenticated user from root to dashboard');
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+  
+  // If user tries to access login page while authenticated, redirect to dashboard
+  if (pathname === '/login' && sessionCookie) {
+    console.log('🔄 Redirecting authenticated user from login to dashboard');
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
