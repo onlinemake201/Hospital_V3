@@ -23,18 +23,19 @@ export async function middleware(request: NextRequest) {
                        request.cookies.get(`a_session_${projectId}_legacy`) ||
                        request.cookies.get('a_session')
   
-  // Debug logging for production
-  if (process.env.NODE_ENV === 'production') {
-    console.log('🔍 Middleware session check:', {
-      pathname,
-      projectId,
-      hasProjectSession: !!request.cookies.get(`a_session_${projectId}`),
-      hasLegacySession: !!request.cookies.get(`a_session_${projectId}_legacy`),
-      hasGenericSession: !!request.cookies.get('a_session'),
-      sessionFound: !!sessionCookie,
-      allCookies: request.cookies.getAll().map(c => c.name)
-    });
-  }
+  // Enhanced debug logging for production troubleshooting
+  console.log('🔍 Middleware session check:', {
+    pathname,
+    projectId,
+    environment: process.env.NODE_ENV,
+    hasProjectSession: !!request.cookies.get(`a_session_${projectId}`),
+    hasLegacySession: !!request.cookies.get(`a_session_${projectId}_legacy`),
+    hasGenericSession: !!request.cookies.get('a_session'),
+    sessionFound: !!sessionCookie,
+    allCookies: request.cookies.getAll().map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })),
+    userAgent: request.headers.get('user-agent')?.substring(0, 50),
+    host: request.headers.get('host')
+  });
   
   // Check for logout or session cleared cookies - comprehensive cleanup
   const logoutCookie = request.cookies.get('logout')
@@ -45,23 +46,28 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/login', request.url))
     
     // Clear ALL possible session cookies with multiple strategies
+    const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax'
     const cookieOptionsSecure = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure'
     
-    // Primary session cookies
+    // Primary session cookies (no domain for production compatibility)
     response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptions}`)
     response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptions}`)
     response.headers.append('Set-Cookie', `a_session=; ${cookieOptions}`)
     
-    // Secure variants
-    response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptionsSecure}`)
-    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptionsSecure}`)
-    response.headers.append('Set-Cookie', `a_session=; ${cookieOptionsSecure}`)
+    // Secure variants (only for production)
+    if (isProduction) {
+      response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptionsSecure}`)
+      response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptionsSecure}`)
+      response.headers.append('Set-Cookie', `a_session=; ${cookieOptionsSecure}`)
+    }
     
-    // Domain-specific variants
-    response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `a_session=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+    // Domain-specific variants (only for localhost development)
+    if (!isProduction) {
+      response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+      response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+      response.headers.append('Set-Cookie', `a_session=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+    }
     
     // Clear trigger cookies
     response.headers.append('Set-Cookie', `logout=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)

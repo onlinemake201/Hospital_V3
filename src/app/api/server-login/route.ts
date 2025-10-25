@@ -70,7 +70,8 @@ export async function POST(request: Request) {
       
       // Determine domain based on environment
       const isProduction = process.env.NODE_ENV === 'production';
-      const domain = isProduction ? 'hostpital-managment-system.com' : 'localhost';
+      // For Appwrite deployment, don't set domain to allow cross-subdomain cookies
+      const domain = isProduction ? '' : 'localhost';
       
       console.log('🍪 Cookie configuration:', {
         isProduction,

@@ -68,6 +68,15 @@ export default function ProtectedLayoutClient({
     try {
       console.log('🚪 Starting comprehensive logout process...');
       
+      // Step 0: Try Appwrite SDK logout first
+      try {
+        console.log('🔄 Attempting Appwrite SDK logout...');
+        await authHelpers.logout();
+        console.log('✅ Appwrite SDK logout successful');
+      } catch (error) {
+        console.log('⚠️ Appwrite SDK logout failed:', error);
+      }
+      
       // Step 1: Call logout API to clear session server-side
       const response = await fetch('/api/logout', {
         method: 'POST',
@@ -101,12 +110,29 @@ export default function ProtectedLayoutClient({
         'session_cleared'
       ];
       
+      // Comprehensive cookie clearing with multiple strategies
       cookiesToClear.forEach(cookieName => {
-        // Clear with different path and domain combinations
+        // Strategy 1: Basic clearing
         document.cookie = `${cookieName}=; path=/; max-age=0`;
-        document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
-        document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`;
-        document.cookie = `${cookieName}=; path=/; secure; max-age=0`;
+        document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        
+        // Strategy 2: Domain-specific clearing for localhost
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
+          document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`;
+          document.cookie = `${cookieName}=; path=/; domain=localhost; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        }
+        
+        // Strategy 3: Secure variants for HTTPS (production)
+        if (window.location.protocol === 'https:') {
+          document.cookie = `${cookieName}=; path=/; secure; max-age=0`;
+          document.cookie = `${cookieName}=; path=/; secure; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        }
+        
+        // Strategy 4: SameSite variants
+        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Strict`;
+        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=None; Secure`;
       });
       
       console.log('✅ Manual cookie cleanup completed');

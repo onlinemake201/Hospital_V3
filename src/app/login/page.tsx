@@ -43,8 +43,17 @@ export default function LoginPage() {
       
       cookiesToClear.forEach(cookieName => {
         document.cookie = `${cookieName}=; path=/; max-age=0`
-        document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`
-        document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`
+        
+        // Only add domain-specific cookies for localhost development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`
+          document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`
+        }
+        
+        // Add secure variant for HTTPS (production)
+        if (window.location.protocol === 'https:') {
+          document.cookie = `${cookieName}=; path=/; secure; max-age=0`
+        }
       })
       
       // Clear local storage
