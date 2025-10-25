@@ -52,7 +52,7 @@ interface CustomerGroup {
   invoices: Invoice[]
   totalAmount: number
   totalBalance: number
-  status: 'paid' | 'overdue' | 'outstanding' | 'sent' | 'draft'
+  status: string
 }
 
 interface BillingPageClientV2Props {
@@ -63,20 +63,17 @@ interface BillingPageClientV2Props {
 export default function BillingPageClientV2({ initialInvoices, currency }: BillingPageClientV2Props) {
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [isChangingStatus, setIsChangingStatus] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState(new Date())
   const { showToast } = useToast()
 
-  const fetchInvoices = useCallback(async (isInitialLoad = false) => {
-    if (!isInitialLoad) {
+  const fetchInvoices = useCallback(async (isInitial = false) => {
+    if (isInitial) {
       setLoading(true)
     }
-    setError(null)
     
     try {
       console.log('🔄 Fetching invoices...')
@@ -92,72 +89,96 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       }
       
       const data = await response.json()
+      console.log('📊 Fetched invoices:', data)
       
-      if (!data.invoices) {
-        throw new Error('Invalid response format: missing invoices')
+      if (data.invoices && Array.isArray(data.invoices)) {
+        setInvoices(data.invoices)
+        console.log('✅ Invoices updated:', data.invoices.length)
+      } else {
+        console.warn('⚠️ Invalid invoices data format:', data)
+        setInvoices([])
       }
-      
-      console.log('✅ Fetched invoices:', data.invoices.length)
-      setInvoices(data.invoices)
-      setLastRefresh(new Date())
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Error fetching invoices:', error)
-      setError(error.message || 'Failed to fetch invoices')
-      showToast('Failed to fetch invoices', 'error')
+      showToast('Failed to load invoices', 'error')
     } finally {
-      setLoading(false)
+      if (isInitial) {
+        setLoading(false)
+      }
     }
-  }, [showToast])
+  }, [])
 
+  // Auto-refresh with smart timing
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
+        console.log('🔄 Auto-refresh triggered')
         fetchInvoices()
+      } else {
+        console.log('⏸️ Auto-refresh skipped - status change in progress')
       }
-    }, 30000)
+    }, 30000) // 30 seconds
     return () => clearInterval(interval)
-  }, [isChangingStatus, fetchInvoices])
+  }, [isChangingStatus]) // Only depend on isChangingStatus
 
+  // Focus-based refresh
   useEffect(() => {
     const handleFocus = () => {
+      console.log('🔄 Window focused, refreshing invoices...')
       fetchInvoices()
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchInvoices])
+  }, []) // Empty dependency array
 
+  // Initial load
   useEffect(() => {
     fetchInvoices(true)
-  }, [fetchInvoices])
+  }, []) // Empty dependency array
 
-  const changeInvoiceStatus = useCallback(async (invoiceId: string, newStatus: string) => {
+  const changeInvoiceStatus = async (invoiceId: string, newStatus: string) => {
+    console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
     setIsChangingStatus(true)
     
     try {
+      console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
+      
       if (newStatus === 'paid' || newStatus === 'overdue') {
+        console.log('⚠️ Critical status change, showing confirmation')
         const confirmed = confirm(`Are you sure you want to change the status to "${newStatus}"?`)
+        console.log('Confirmation result:', confirmed)
         if (!confirmed) {
+          console.log('❌ User cancelled, resetting select')
           const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
           if (selectElement) {
             const invoice = invoices.find(inv => inv.$id === invoiceId)
             if (invoice) {
               selectElement.value = invoice.status
+              console.log('✅ Select reset to:', invoice.status)
             }
           }
           return
         }
       }
       
+      console.log('🌐 Making API request to:', `/api/billing/${invoiceId}/status`)
       const response = await fetch(`/api/billing/${invoiceId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
       
+      console.log('📡 API response status:', response.status)
+      console.log('📡 API response ok:', response.ok)
+      
       if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Status changed successfully:', result)
+        console.log('🎉 Showing success toast for:', newStatus)
         showToast(`Status changed to ${newStatus}`, 'success')
         
+        // Update the invoice status in the local state immediately
+        console.log('🔄 Updating local state for invoice:', invoiceId)
         setInvoices(prevInvoices => 
           prevInvoices.map(inv => 
             inv.$id === invoiceId 
@@ -166,62 +187,83 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
           )
         )
         
+        // Also refresh from server after a short delay to ensure DB is updated
+        console.log('🔄 Scheduling server refresh in 2 seconds...')
         setTimeout(async () => {
+          console.log('🔄 Refreshing from server after status change')
           await fetchInvoices()
         }, 2000)
-        
       } else {
         const error = await response.json()
+        console.error('❌ Status change failed:', error)
+        console.log('🚨 Showing error toast for:', error.error)
         showToast(`Failed to change status: ${error.error}`, 'error')
         
+        // Reset the select to original value on error
+        console.log('🔄 Resetting select on error for invoice:', invoiceId)
         const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
         if (selectElement) {
           const invoice = invoices.find(inv => inv.$id === invoiceId)
           if (invoice) {
             selectElement.value = invoice.status
+            console.log('✅ Select reset to original value:', invoice.status)
           }
         }
       }
     } catch (error) {
       console.error('❌ Error changing invoice status:', error)
+      console.log('🚨 Showing catch error toast')
       showToast('Failed to change status', 'error')
       
+      // Reset the select to original value on error
+      console.log('🔄 Resetting select on catch error for invoice:', invoiceId)
       const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
       if (selectElement) {
         const invoice = invoices.find(inv => inv.$id === invoiceId)
         if (invoice) {
           selectElement.value = invoice.status
+          console.log('✅ Select reset to original value:', invoice.status)
         }
       }
     } finally {
+      // Reset the flag after a short delay to allow server refresh
+      console.log('🔄 Resetting isChangingStatus flag in 3 seconds')
       setTimeout(() => {
+        console.log('✅ Resetting isChangingStatus flag')
         setIsChangingStatus(false)
       }, 3000)
     }
-  }, [invoices, showToast, fetchInvoices])
+  }
 
   const customerGroups = useMemo(() => {
-    const grouped = invoices.reduce((groups: Record<string, CustomerGroup>, invoice) => {
-      const patientId = invoice.patientId || invoice.patient?.id || 'unknown'
+    const filtered = invoices.filter(invoice => {
+      const matchesSearch = !searchTerm || 
+        invoice.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patient?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patient?.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoice.patient?.patientNo.toLowerCase().includes(searchTerm.toLowerCase())
       
+      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
+      
+      return matchesSearch && matchesStatus
+    })
+
+    const grouped = filtered.reduce((groups: Record<string, CustomerGroup>, invoice) => {
+      const patientId = invoice.patientId
       if (!groups[patientId]) {
         groups[patientId] = {
-          patient: invoice.patient || {
-            id: patientId,
-            firstName: 'Unknown',
-            lastName: 'Patient',
-            patientNo: 'N/A'
-          },
+          patient: invoice.patient || { id: patientId, firstName: 'Unknown', lastName: 'Patient', patientNo: 'N/A' },
           invoices: [],
           totalAmount: 0,
           totalBalance: 0,
-          status: 'outstanding' as const
+          status: 'outstanding'
         }
       }
       
       groups[patientId].invoices.push(invoice)
       groups[patientId].totalAmount += Number(invoice.amount)
       
+      // Only add balance for non-paid invoices
       if (invoice.status === 'paid') {
         groups[patientId].totalBalance += 0
       } else {
@@ -231,9 +273,12 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       return groups
     }, {})
 
+    // Calculate group status
     Object.values(grouped).forEach(group => {
       const hasOverdue = group.invoices.some(inv => inv.status === 'overdue')
       const allPaid = group.invoices.every(inv => inv.status === 'paid')
+      const allSent = group.invoices.every(inv => inv.status === 'sent')
+      const allDraft = group.invoices.every(inv => inv.status === 'draft')
       const hasSent = group.invoices.some(inv => inv.status === 'sent')
       const hasDraft = group.invoices.some(inv => inv.status === 'draft')
       
@@ -241,6 +286,10 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         group.status = 'overdue'
       } else if (allPaid) {
         group.status = 'paid'
+      } else if (allSent) {
+        group.status = 'sent'
+      } else if (allDraft) {
+        group.status = 'draft'
       } else if (hasSent) {
         group.status = 'sent'
       } else if (hasDraft) {
@@ -251,20 +300,25 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     })
 
     return Object.values(grouped)
-  }, [invoices])
+  }, [invoices, searchTerm, statusFilter])
 
-  const filteredGroups = useMemo(() => {
-    return customerGroups.filter(group => {
-      const matchesSearch = searchTerm === '' || 
-        group.patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.patient.patientNo.toLowerCase().includes(searchTerm.toLowerCase())
-      
-      const matchesStatus = statusFilter === 'all' || group.status === statusFilter
-      
-      return matchesSearch && matchesStatus
-    })
-  }, [customerGroups, searchTerm, statusFilter])
+  const dashboardStats = useMemo(() => {
+    const totalOutstanding = invoices.reduce((sum, inv) => 
+      inv.status === 'paid' ? sum : sum + Number(inv.balance), 0)
+    
+    const totalPaid = invoices.reduce((sum, inv) => 
+      inv.status === 'paid' ? sum + Number(inv.amount) : sum, 0)
+    
+    const overdueCount = invoices.filter(inv => inv.status === 'overdue').length
+    const totalInvoices = invoices.length
+
+    return {
+      totalOutstanding,
+      totalPaid,
+      overdueCount,
+      totalInvoices
+    }
+  }, [invoices])
 
   const toggleGroupExpansion = (patientId: string) => {
     setExpandedGroups(prev => {
@@ -309,6 +363,16 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     )
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -327,232 +391,206 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{invoices.length}</p>
-            </div>
-            <FileText className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Amount</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(invoices.reduce((sum, inv) => sum + Number(inv.amount), 0), currency)}
-              </p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-green-600" />
-          </div>
-        </div>
-        
+      {/* Dashboard Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(invoices.reduce((sum, inv) => {
-                  return inv.status === 'paid' ? sum : sum + Number(inv.balance)
-                }, 0), currency)}
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {formatCurrency(dashboardStats.totalOutstanding, currency)}
               </p>
             </div>
-            <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {formatCurrency(invoices.reduce((sum, inv) => {
-                  return inv.status === 'paid' ? sum + Number(inv.amount) : sum
-                }, 0), currency)}
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {formatCurrency(dashboardStats.totalPaid, currency)}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {dashboardStats.overdueCount}
+              </p>
+            </div>
+            <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                {dashboardStats.totalInvoices}
+              </p>
+            </div>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+              <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
         </div>
       </div>
 
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            Loading invoices...
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-            <AlertTriangle className="w-5 h-5" />
-            <span className="font-medium">Error loading invoices</span>
-          </div>
-          <p className="text-red-700 dark:text-red-300 mt-1">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && (
+      {/* Filters and Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search patients..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search invoices..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
           
-          <div className="flex items-center gap-2">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={expandAllGroups}
+            className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+          >
+            Expand All
+          </button>
+          <button
+            onClick={collapseAllGroups}
+            className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+          >
+            Collapse All
+          </button>
+          
+          <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 ${viewMode === 'cards' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}
             >
-              <option value="all">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-              <option value="sent">Sent</option>
-              <option value="draft">Draft</option>
-              <option value="outstanding">Outstanding</option>
-            </select>
-            
-            <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`p-2 ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-              >
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-2 ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <button
-                onClick={expandAllGroups}
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-              >
-                Expand All
-              </button>
-              <button
-                onClick={collapseAllGroups}
-                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-              >
-                Collapse All
-              </button>
-            </div>
+              <Grid3X3 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-2 ${viewMode === 'table' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400'}`}
+            >
+              <List className="w-4 h-4" />
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
-      {!loading && !error && filteredGroups.length > 0 && (
-        <div className="space-y-4">
-          {filteredGroups.map((group) => {
-            const isExpanded = expandedGroups.has(group.patient.id)
-            
-            return (
-              <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => toggleGroupExpansion(group.patient.id)}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                        ) : (
-                          <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                        )}
-                      </button>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-                            {group.patient.firstName} {group.patient.lastName}
-                          </h3>
-                          <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Patient No: {group.patient.patientNo} • {group.invoices.length} invoice(s)
-                          </p>
-                        </div>
+      {/* Customer Groups */}
+      <div className="space-y-4">
+        {customerGroups.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No invoices found</h3>
+            <p className="text-slate-600 dark:text-slate-400">Try adjusting your search or filter criteria</p>
+          </div>
+        ) : (
+          customerGroups.map((group) => (
+            <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              {/* Customer Header */}
+              <div 
+                className="p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                onClick={() => toggleGroupExpansion(group.patient.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {expandedGroups.has(group.patient.id) ? (
+                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-slate-400" />
+                      <span className="font-medium text-slate-900 dark:text-slate-100">
+                        {group.patient.firstName} {group.patient.lastName}
+                      </span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        ({group.patient.patientNo})
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {formatCurrency(group.totalAmount, currency)}
+                      </div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400">
+                        Outstanding: {formatCurrency(group.totalBalance, currency)}
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Total Amount</p>
-                        <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                          {formatCurrency(group.totalAmount, currency)}
-                        </p>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Outstanding</p>
-                        <p className={`text-lg font-semibold ${group.totalBalance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                          {formatCurrency(group.totalBalance, currency)}
-                        </p>
-                      </div>
-                      
-                      <div className="text-right">
-                        {getStatusBadge(group.status)}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(group.status)}
+                      <span className="text-sm text-slate-500 dark:text-slate-400">
+                        {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {isExpanded && (
-                  <div className="p-6">
-                    {viewMode === 'cards' ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {group.invoices.map((invoice) => (
-                          <div key={invoice.$id} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-slate-900 dark:text-slate-100">
+              {/* Invoices List */}
+              {expandedGroups.has(group.patient.id) && (
+                <div className="border-t border-slate-200 dark:border-slate-700">
+                  {viewMode === 'cards' ? (
+                    <div className="p-4 space-y-3">
+                      {group.invoices.map((invoice) => (
+                        <div key={invoice.$id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <div className="font-medium text-slate-900 dark:text-slate-100">
                                 {invoice.invoiceNo}
-                              </h4>
-                              {getStatusBadge(invoice.status)}
+                              </div>
+                              <div className="text-sm text-slate-600 dark:text-slate-400">
+                                {new Date(invoice.issueDate).toLocaleDateString()}
+                              </div>
                             </div>
-                            
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-slate-600 dark:text-slate-400">Amount:</span>
-                                <span className="font-medium text-slate-900 dark:text-slate-100">
-                                  {formatCurrency(invoice.amount, currency)}
-                                </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="font-medium text-slate-900 dark:text-slate-100">
+                                {formatCurrency(invoice.amount, currency)}
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-600 dark:text-slate-400">Outstanding:</span>
-                                <span className={`font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {formatCurrency(invoice.balance, currency)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-600 dark:text-slate-400">Due Date:</span>
-                                <span className="text-slate-900 dark:text-slate-100">
-                                  {new Date(invoice.dueDate).toLocaleDateString()}
-                                </span>
+                              <div className="text-sm text-slate-600 dark:text-slate-400">
+                                Balance: {formatCurrency(invoice.balance, currency)}
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2 mt-4">
+                            <div className="flex items-center gap-2">
                               <select
                                 value={invoice.status}
                                 onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
@@ -573,89 +611,95 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                               
                               <Link
                                 href={`/billing/${invoice.$id}`}
-                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                className="p-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                               >
                                 <Eye className="w-4 h-4" />
-                                View
                               </Link>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-slate-200 dark:border-slate-600">
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Invoice</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Amount</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Outstanding</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Due Date</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Status</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Actions</th>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Invoice
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Balance
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                          {group.invoices.map((invoice) => (
+                            <tr key={invoice.$id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                              <td className="py-3 px-4 text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {invoice.invoiceNo}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
+                                {new Date(invoice.issueDate).toLocaleDateString()}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
+                                {formatCurrency(invoice.amount, currency)}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  {formatCurrency(invoice.balance, currency)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <select
+                                  value={invoice.status}
+                                  onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
+                                  data-invoice-id={invoice.$id}
+                                  className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
+                                    invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
+                                    invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
+                                    invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
+                                    invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
+                                    'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
+                                  }`}
+                                >
+                                  <option value="draft">Draft</option>
+                                  <option value="sent">Sent</option>
+                                  <option value="paid">Paid</option>
+                                  <option value="overdue">Overdue</option>
+                                </select>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Link
+                                  href={`/billing/${invoice.$id}`}
+                                  className="inline-flex items-center gap-1 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View
+                                </Link>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {group.invoices.map((invoice) => (
-                              <tr key={invoice.$id} className="border-b border-slate-100 dark:border-slate-700">
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{invoice.invoiceNo}</td>
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, currency)}</td>
-                                <td className="py-3 px-4">
-                                  <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                    {formatCurrency(invoice.balance, currency)}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
-                                  {new Date(invoice.dueDate).toLocaleDateString()}
-                                </td>
-                                <td className="py-3 px-4">
-                                  <select
-                                    value={invoice.status}
-                                    onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
-                                    data-invoice-id={invoice.$id}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
-                                      invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
-                                      invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
-                                      invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
-                                      invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
-                                      'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
-                                    }`}
-                                  >
-                                    <option value="draft">Draft</option>
-                                    <option value="sent">Sent</option>
-                                    <option value="paid">Paid</option>
-                                    <option value="overdue">Overdue</option>
-                                  </select>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <Link
-                                    href={`/billing/${invoice.$id}`}
-                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    View
-                                  </Link>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-        Last updated: {lastRefresh.toLocaleTimeString()}
-        {isChangingStatus && (
-          <span className="ml-2 text-blue-600 dark:text-blue-400">
-            • Status change in progress...
-          </span>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
         )}
       </div>
     </div>
