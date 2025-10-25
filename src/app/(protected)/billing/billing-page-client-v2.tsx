@@ -376,24 +376,33 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Billing</h1>
-          <p className="text-slate-600 dark:text-slate-400">Manage invoices and payments</p>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Billing
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Manage invoices and <span className="bg-blue-100 dark:bg-blue-900/20 px-2 py-1 rounded-md text-blue-700 dark:text-blue-300">track payments</span>
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/billing/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
           >
             <Plus className="w-4 h-4" />
-            New Invoice
+            New
           </Link>
         </div>
       </div>
 
       {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
@@ -401,13 +410,13 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                 {formatCurrency(dashboardStats.totalOutstanding, currency)}
               </p>
             </div>
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl">
               <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
@@ -415,13 +424,13 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                 {formatCurrency(dashboardStats.totalPaid, currency)}
               </p>
             </div>
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl">
               <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue</p>
@@ -429,13 +438,13 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                 {dashboardStats.overdueCount}
               </p>
             </div>
-            <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-red-100 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl">
               <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
@@ -443,7 +452,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                 {dashboardStats.totalInvoices}
               </p>
             </div>
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+            <div className="p-3 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl">
               <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
