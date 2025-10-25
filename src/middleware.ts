@@ -23,6 +23,19 @@ export async function middleware(request: NextRequest) {
                        request.cookies.get(`a_session_${projectId}_legacy`) ||
                        request.cookies.get('a_session')
   
+  // Debug logging for production
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🔍 Middleware session check:', {
+      pathname,
+      projectId,
+      hasProjectSession: !!request.cookies.get(`a_session_${projectId}`),
+      hasLegacySession: !!request.cookies.get(`a_session_${projectId}_legacy`),
+      hasGenericSession: !!request.cookies.get('a_session'),
+      sessionFound: !!sessionCookie,
+      allCookies: request.cookies.getAll().map(c => c.name)
+    });
+  }
+  
   // If no session cookie and trying to access protected route, redirect to login
   if (!sessionCookie && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url))

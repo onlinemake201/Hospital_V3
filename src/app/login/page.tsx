@@ -25,20 +25,40 @@ export default function LoginPage() {
   const checkExistingSession = async () => {
     try {
       console.log('🔍 Checking for existing session...')
+      console.log('🍪 All cookies:', document.cookie)
       
-      // Check if we have session cookies
+      // Check if we have session cookies - multiple variants
       const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef'
       const sessionCookie = document.cookie.includes(`a_session_${projectId}`) || 
-                           document.cookie.includes(`a_session_${projectId}_legacy`)
+                           document.cookie.includes(`a_session_${projectId}_legacy`) ||
+                           document.cookie.includes('a_session=')
+      
+      console.log('🔍 Session cookie check:', {
+        projectId,
+        hasProjectSession: document.cookie.includes(`a_session_${projectId}`),
+        hasLegacySession: document.cookie.includes(`a_session_${projectId}_legacy`),
+        hasGenericSession: document.cookie.includes('a_session='),
+        sessionFound: sessionCookie
+      })
       
       if (sessionCookie) {
-        console.log('✅ Session cookie found - redirecting to dashboard')
-        // Use replace instead of push to avoid back button issues
-        window.location.replace('/dashboard')
-        return
+        console.log('✅ Session cookie found - verifying with Appwrite...')
+        
+        // Double-check with Appwrite API
+        try {
+          const user = await authHelpers.getCurrentUser()
+          if (user) {
+            console.log('✅ Appwrite session verified - redirecting to dashboard')
+            window.location.replace('/dashboard')
+            return
+          }
+        } catch (error) {
+          console.log('❌ Appwrite session verification failed:', error)
+          // Continue to login page even if verification fails
+        }
       }
       
-      console.log('❌ No session cookie found - staying on login page')
+      console.log('❌ No valid session found - staying on login page')
     } catch (error) {
       console.log('❌ Session check error:', error)
     }
@@ -168,8 +188,11 @@ export default function LoginPage() {
       
       console.log('🔄 STEP 4: Redirecting to Dashboard...')
       
-      // Redirect to dashboard - cookies are already set by the server
-      window.location.href = '/dashboard'
+      // Wait a moment for cookies to be set, then redirect
+      setTimeout(() => {
+        console.log('🚀 Performing redirect to dashboard...')
+        window.location.replace('/dashboard')
+      }, 100)
       
       console.log('🔐 ===== APPWRITE LOGIN PROCESS END (SUCCESS) =====')
       
