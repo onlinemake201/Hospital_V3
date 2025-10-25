@@ -36,6 +36,19 @@ export async function middleware(request: NextRequest) {
     });
   }
   
+  // Check for logout cookie - if present, clear session and redirect to login
+  const logoutCookie = request.cookies.get('logout')
+  if (logoutCookie) {
+    console.log('🚪 Logout detected, clearing session and redirecting to login')
+    const response = NextResponse.redirect(new URL('/login', request.url))
+    // Clear all session cookies
+    response.cookies.delete(`a_session_${projectId}`)
+    response.cookies.delete(`a_session_${projectId}_legacy`)
+    response.cookies.delete('a_session')
+    response.cookies.delete('logout')
+    return response
+  }
+  
   // If no session cookie and trying to access protected route, redirect to login
   if (!sessionCookie && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url))

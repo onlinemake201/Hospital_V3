@@ -6,7 +6,7 @@ export async function POST() {
   
   try {
     // Clear all session cookies
-    const projectId = process.env.APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
+    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
     
     // Create response
     const response = NextResponse.json({ 
@@ -22,6 +22,11 @@ export async function POST() {
     
     response.headers.append('Set-Cookie', 
       `a_session_${projectId}_legacy=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`
+    );
+    
+    // Set logout cookie to trigger middleware cleanup
+    response.headers.append('Set-Cookie', 
+      `logout=true; Path=/; Domain=localhost; Max-Age=1; HttpOnly; SameSite=Lax`
     );
     
     console.log('✅ Logout successful - cookies cleared');

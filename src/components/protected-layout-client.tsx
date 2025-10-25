@@ -66,6 +66,8 @@ export default function ProtectedLayoutClient({
 
   const handleLogout = async () => {
     try {
+      console.log('🚪 Starting logout process...');
+      
       // Call logout API to clear session
       const response = await fetch('/api/logout', {
         method: 'POST',
@@ -75,19 +77,27 @@ export default function ProtectedLayoutClient({
       });
       
       if (response.ok) {
+        console.log('✅ Logout API successful');
+        
         // Clear any local storage/session storage
         localStorage.clear();
         sessionStorage.clear();
         
-        // Redirect to login page
+        // Set logout cookie to trigger middleware cleanup
+        document.cookie = 'logout=true; path=/; max-age=1';
+        
+        // Force redirect to login page
         window.location.href = '/login';
       } else {
-        // Fallback: just redirect
+        console.log('⚠️ Logout API failed, using fallback');
+        // Fallback: clear cookies manually and redirect
+        document.cookie = 'logout=true; path=/; max-age=1';
         window.location.href = '/login';
       }
     } catch (error) {
-      console.error('Logout error:', error);
-      // Fallback: just redirect
+      console.error('❌ Logout error:', error);
+      // Fallback: clear cookies manually and redirect
+      document.cookie = 'logout=true; path=/; max-age=1';
       window.location.href = '/login';
     }
   }
