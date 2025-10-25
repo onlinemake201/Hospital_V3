@@ -154,7 +154,16 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         // Show success message
         showToast(`Status changed to ${newStatus}`, 'success')
         
-        // Refresh the invoices list to show updated status
+        // Update the invoice status in the local state immediately
+        setInvoices(prevInvoices => 
+          prevInvoices.map(inv => 
+            inv.$id === invoiceId 
+              ? { ...inv, status: newStatus }
+              : inv
+          )
+        )
+        
+        // Also refresh from server to ensure consistency
         await fetchInvoices()
       } else {
         const error = await response.json()
@@ -301,13 +310,12 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         return groups
       }, {})
 
-    // Status für jede Kundengruppe bestimmen
+    // Status für jede Kundengruppe bestimmen - basierend auf Invoice-Status, nicht Balance
     Object.values(grouped).forEach(group => {
-      const hasOverdue = group.invoices.some(inv => 
-        inv.status === 'overdue' || (new Date(inv.dueDate) < new Date() && Number(inv.balance) > 0)
-      )
+      const hasOverdue = group.invoices.some(inv => inv.status === 'overdue')
       const hasPartial = group.invoices.some(inv => inv.status === 'partial')
-      const allPaid = group.invoices.every(inv => Number(inv.balance) <= 0)
+      const allPaid = group.invoices.every(inv => inv.status === 'paid')
+      const hasSent = group.invoices.some(inv => inv.status === 'sent' || inv.status === 'pending')
       
       if (hasOverdue) {
         group.status = 'overdue'
@@ -315,6 +323,8 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         group.status = 'partial'
       } else if (allPaid) {
         group.status = 'paid'
+      } else if (hasSent) {
+        group.status = 'outstanding'
       } else {
         group.status = 'outstanding'
       }
@@ -660,10 +670,10 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                               <td className="py-3 px-4 font-mono text-sm text-slate-900 dark:text-slate-100">{invoice.invoiceNo}</td>
                               <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{new Date(invoice.issueDate).toLocaleDateString('en-US')}</td>
                               <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{new Date(invoice.dueDate).toLocaleDateString('en-US')}</td>
-                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, invoice.currency || currency || 'CHF')}</td>
+                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, currency || 'CHF')}</td>
                               <td className="py-3 px-4">
                                 <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {formatCurrency(invoice.balance, invoice.currency || currency || 'CHF')}
+                                  {formatCurrency(invoice.balance, currency || 'CHF')}
                                 </span>
                               </td>
                               <td className="py-3 px-4">
