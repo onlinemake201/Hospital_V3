@@ -60,6 +60,8 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         setLoading(true)
         setError(null)
         
+        console.log('🔄 Fetching invoice data for:', invoiceId)
+        
         const response = await fetch(`/api/billing/${invoiceId}`, {
           headers: {
             'Cache-Control': 'no-cache',
@@ -72,13 +74,13 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         }
         
         const data = await response.json()
-        console.log('Fetched invoice data:', data.invoice)
+        console.log('📊 Fetched invoice data:', data.invoice)
         
         if (isMounted) {
           setInvoice(data.invoice)
         }
       } catch (error: any) {
-        console.error('Error fetching invoice:', error)
+        console.error('❌ Error fetching invoice:', error)
         if (isMounted) {
           setError(error.message || 'Failed to load invoice')
         }
@@ -95,6 +97,58 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
       isMounted = false
     }
   }, [invoiceId])
+
+  // Listen for page focus to refresh data when returning from edit
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Page focused, refreshing invoice data...')
+      fetchInvoice()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [invoiceId])
+
+  // Automatic refresh every 30 seconds for real-time status updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refresh triggered for invoice detail')
+      fetchInvoice()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [invoiceId])
+
+  // Manual refresh function
+  const fetchInvoice = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('🔄 Manual refresh for invoice:', invoiceId)
+      
+      const response = await fetch(`/api/billing/${invoiceId}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoice')
+      }
+      
+      const data = await response.json()
+      console.log('📊 Refreshed invoice data:', data.invoice)
+      
+      setInvoice(data.invoice)
+    } catch (error: any) {
+      console.error('❌ Error refreshing invoice:', error)
+      setError(error.message || 'Failed to refresh invoice')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (

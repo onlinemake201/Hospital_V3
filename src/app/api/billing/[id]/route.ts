@@ -34,6 +34,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
       throw error
     }
 
+    // Update status before returning the invoice
+    try {
+      console.log('🔄 Updating status for invoice detail view:', invoice.$id)
+      const { updateInvoiceStatus } = await import('@/app/api/billing/route')
+      const newStatus = await updateInvoiceStatus(invoice)
+      console.log('✅ Status updated for invoice detail:', newStatus)
+      
+      // Update the invoice object with the new status
+      invoice.status = newStatus
+    } catch (statusError) {
+      console.warn('Could not update status for invoice detail:', statusError)
+      // Continue anyway - return invoice with current status
+    }
+
     // Fetch patient data
     let patient = null
     if (invoice.patientId) {
@@ -114,6 +128,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
       console.error('Error fetching payments for invoice:', invoice.$id, error)
       // Continue without payments
     }
+
+    console.log('📊 Returning invoice with updated status:', {
+      id: invoice.$id,
+      status: invoice.status,
+      balance: invoice.balance,
+      amount: invoice.amount,
+      dueDate: invoice.dueDate
+    })
 
     return NextResponse.json({
       invoice: {

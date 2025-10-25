@@ -162,10 +162,10 @@ export default function EditInvoicePage() {
         throw new Error(error.error || 'Failed to update invoice')
       }
 
-      console.log('✅ Invoice updated successfully, redirecting to billing page')
+      console.log('✅ Invoice updated successfully, redirecting to invoice detail')
       
-      // Redirect to billing page after successful update
-      router.push('/billing')
+      // Redirect to invoice detail page to see updated status
+      router.push(`/billing/${invoiceId}`)
     } catch (error: any) {
       setError(error.message)
     } finally {
