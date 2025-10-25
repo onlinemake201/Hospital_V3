@@ -128,12 +128,12 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
     return () => window.removeEventListener('focus', handleFocus)
   }, [invoiceId])
 
-  // Automatic refresh every 30 seconds for real-time status updates
+  // Automatic refresh every 5 seconds for real-time status updates
   useEffect(() => {
     const interval = setInterval(() => {
       console.log('🔄 Auto-refresh triggered for invoice detail')
       fetchInvoice()
-    }, 30000) // 30 seconds
+    }, 5000) // 5 seconds for better responsiveness
 
     return () => clearInterval(interval)
   }, [invoiceId])

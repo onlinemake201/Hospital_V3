@@ -87,7 +87,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
-  // Automatic refresh every 30 seconds for real-time updates
+  // Automatic refresh every 5 seconds for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
@@ -96,7 +96,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
       } else {
         console.log('⏸️ Auto-refresh skipped - status change in progress')
       }
-    }, 30000) // 30 seconds
+    }, 5000) // 5 seconds for better responsiveness
 
     return () => clearInterval(interval)
   }, [isChangingStatus])
@@ -183,8 +183,12 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
           )
         )
         
-        // Don't refresh from server immediately to prevent status revert
-        console.log('✅ Status updated locally, skipping server refresh to prevent revert')
+        // Also refresh from server after a short delay to ensure DB is updated
+        console.log('🔄 Scheduling server refresh in 2 seconds...')
+        setTimeout(async () => {
+          console.log('🔄 Refreshing from server after status change')
+          await fetchInvoices()
+        }, 2000)
       } else {
         const error = await response.json()
         console.error('❌ Status change failed:', error)
@@ -218,9 +222,12 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         }
       }
     } finally {
-      // Always reset the flag after status change attempt
-      console.log('🔄 Resetting isChangingStatus flag')
-      setIsChangingStatus(false)
+      // Reset the flag after a short delay to allow server refresh
+      console.log('🔄 Resetting isChangingStatus flag in 3 seconds')
+      setTimeout(() => {
+        console.log('✅ Resetting isChangingStatus flag')
+        setIsChangingStatus(false)
+      }, 3000)
     }
   }
 
