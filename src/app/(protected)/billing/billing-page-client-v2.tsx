@@ -8,22 +8,24 @@ import { getCurrency } from '@/lib/system-settings'
 import { useToast } from '@/components/modern-toast'
 import { 
   DollarSign, 
+  FileText, 
   AlertTriangle, 
-  Calendar, 
-  CheckCircle,
+  CheckCircle, 
   TrendingUp,
-  TrendingDown,
-  Clock,
-  CreditCard,
-  Eye,
-  Trash2,
-  RefreshCw,
   Search,
   Filter,
-  MoreVertical,
+  Grid3X3,
+  List,
+  ChevronDown,
+  ChevronRight,
+  Eye,
   Edit,
-  FileText,
-  Download
+  Trash2,
+  Plus,
+  RefreshCw,
+  Calendar,
+  User,
+  CreditCard
 } from 'lucide-react'
 
 interface Invoice {
@@ -34,16 +36,18 @@ interface Invoice {
   amount: number
   balance: number
   status: string
-  currency?: string
-  items: string | any[]
-  patientId?: string
-  patient: {
+  currency: string
+  items: string
+  patientId: string
+  patient?: {
     id: string
     firstName: string
     lastName: string
     patientNo: string
   }
   payments: any[]
+  $createdAt: string
+  $updatedAt: string
 }
 
 interface CustomerGroup {
@@ -56,7 +60,7 @@ interface CustomerGroup {
   invoices: Invoice[]
   totalAmount: number
   totalBalance: number
-  status: 'paid' | 'outstanding' | 'overdue' | 'sent' | 'draft'
+  status: 'paid' | 'overdue' | 'outstanding' | 'sent' | 'draft'
 }
 
 interface BillingPageClientV2Props {
@@ -65,165 +69,208 @@ interface BillingPageClientV2Props {
 }
 
 export default function BillingPageClientV2({ initialInvoices, currency }: BillingPageClientV2Props) {
-  const router = useRouter()
-  const { showToast } = useToast()
-  
-  // State management
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [isChangingStatus, setIsChangingStatus] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [lastRefresh, setLastRefresh] = useState(new Date())
+  const { showToast } = useToast()
+  const router = useRouter()
 
-  // Fetch invoices with better error handling and caching - STABLE FUNCTION
-  const fetchInvoices = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true)
+  // Optimized fetchInvoices with useCallback
+  const fetchInvoices = useCallback(async (isInitialLoad = false) => {
+    if (!isInitialLoad) {
+      setLoading(true)
+    }
+    setError(null)
     
     try {
       console.log('🔄 Fetching invoices...')
-      
       const response = await fetch('/api/billing/v2', {
-        method: 'GET',
         headers: {
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'X-Requested-With': 'XMLHttpRequest'
+          'Pragma': 'no-cache'
         }
       })
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
       
-      if (!data.invoices || !Array.isArray(data.invoices)) {
-        throw new Error('Invalid response format')
+      if (!data.invoices) {
+        throw new Error('Invalid response format: missing invoices')
       }
       
-      console.log('✅ Invoices fetched successfully:', data.invoices.length)
+      console.log('✅ Fetched invoices:', data.invoices.length)
       setInvoices(data.invoices)
       setLastRefresh(new Date())
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching invoices:', error)
-      showToast('Failed to load invoices', 'error')
-      // Don't clear invoices on error, keep existing data
+      setError(error.message || 'Failed to fetch invoices')
+      showToast('Failed to fetch invoices', 'error')
     } finally {
-      if (showLoading) setLoading(false)
+      setLoading(false)
     }
-  }, [showToast]) // Only depend on showToast
+  }, [showToast])
 
-  // Smart status change handler
+  // Auto-refresh with smart timing - FIXED DEPENDENCIES
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isChangingStatus) {
+        console.log('🔄 Auto-refresh triggered')
+        fetchInvoices()
+      } else {
+        console.log('⏸️ Auto-refresh skipped - status change in progress')
+      }
+    }, 30000) // 30 seconds
+    return () => clearInterval(interval)
+  }, [isChangingStatus]) // Only depend on isChangingStatus, not fetchInvoices
+
+  // Focus-based refresh - FIXED DEPENDENCIES
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Window focused, refreshing invoices...')
+      fetchInvoices()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, []) // Empty dependency array to prevent re-registration
+
+  // Initial load - FIXED DEPENDENCIES
+  useEffect(() => {
+    fetchInvoices(true)
+  }, []) // Empty dependency array to run only once
+
   const changeInvoiceStatus = useCallback(async (invoiceId: string, newStatus: string) => {
-    if (isChangingStatus) {
-      console.log('⏸️ Status change already in progress, skipping')
-      return
-    }
-
-    setIsChangingStatus(true)
+    console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
+    setIsChangingStatus(true) // Set flag to prevent auto-refresh
     
     try {
       console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
       
-      // Show confirmation for critical status changes
       if (newStatus === 'paid' || newStatus === 'overdue') {
+        console.log('⚠️ Critical status change, showing confirmation')
         const confirmed = confirm(`Are you sure you want to change the status to "${newStatus}"?`)
+        console.log('Confirmation result:', confirmed)
         if (!confirmed) {
-          // Reset dropdown to original value
+          console.log('❌ User cancelled, resetting select')
           const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
           if (selectElement) {
             const invoice = invoices.find(inv => inv.$id === invoiceId)
             if (invoice) {
               selectElement.value = invoice.status
+              console.log('✅ Select reset to:', invoice.status)
             }
           }
           return
         }
       }
       
+      console.log('🌐 Making API request to:', `/api/billing/${invoiceId}/status`)
       const response = await fetch(`/api/billing/${invoiceId}/status`, {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
       
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update status')
-      }
+      console.log('📡 API response status:', response.status)
+      console.log('📡 API response ok:', response.ok)
       
-      const result = await response.json()
-      console.log('✅ Status changed successfully:', result)
-      
-      // Update local state immediately
-      setInvoices(prevInvoices => 
-        prevInvoices.map(inv => 
-          inv.$id === invoiceId 
-            ? { ...inv, status: newStatus, $updatedAt: new Date().toISOString() }
-            : inv
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Status changed successfully:', result)
+        console.log('🎉 Showing success toast for:', newStatus)
+        showToast(`Status changed to ${newStatus}`, 'success')
+        
+        // Update the invoice status in the local state immediately
+        console.log('🔄 Updating local state for invoice:', invoiceId)
+        setInvoices(prevInvoices => 
+          prevInvoices.map(inv => 
+            inv.$id === invoiceId 
+              ? { ...inv, status: newStatus }
+              : inv
+          )
         )
-      )
+        // Don't refresh from server immediately to prevent status revert
+        console.log('✅ Status updated locally, skipping server refresh to prevent revert')
+        
+        // Also refresh from server after a short delay to ensure DB is updated
+        console.log('🔄 Scheduling server refresh in 2 seconds...')
+        setTimeout(async () => {
+          console.log('🔄 Refreshing from server after status change')
+          await fetchInvoices()
+        }, 2000)
+        
+      } else {
+        const error = await response.json()
+        console.error('❌ Status change failed:', error)
+        console.log('🚨 Showing error toast for:', error.error)
+        showToast(`Failed to change status: ${error.error}`, 'error')
+        
+        // Reset the select to original value on error
+        console.log('🔄 Resetting select on error for invoice:', invoiceId)
+        const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
+        if (selectElement) {
+          const invoice = invoices.find(inv => inv.$id === invoiceId)
+          if (invoice) {
+            selectElement.value = invoice.status
+            console.log('✅ Select reset to original value:', invoice.status)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error changing invoice status:', error)
+      console.log('🚨 Showing catch error toast')
+      showToast('Failed to change status', 'error')
       
-      showToast(`Status changed to ${newStatus}`, 'success')
-      
-      // Refresh from server after a delay to ensure consistency
-      setTimeout(() => {
-        fetchInvoices()
-      }, 2000)
-      
-    } catch (error: any) {
-      console.error('❌ Error changing status:', error)
-      showToast(`Failed to change status: ${error.message}`, 'error')
-      
-      // Reset dropdown on error
+      // Reset the select to original value on error
+      console.log('🔄 Resetting select on catch error for invoice:', invoiceId)
       const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
       if (selectElement) {
         const invoice = invoices.find(inv => inv.$id === invoiceId)
         if (invoice) {
           selectElement.value = invoice.status
+          console.log('✅ Select reset to original value:', invoice.status)
         }
       }
     } finally {
-      // Reset flag after a delay to allow server refresh
+      console.log('🔄 Resetting isChangingStatus flag')
+      // Reset the flag after a short delay to allow server refresh
+      console.log('🔄 Resetting isChangingStatus flag in 3 seconds')
       setTimeout(() => {
+        console.log('✅ Resetting isChangingStatus flag')
         setIsChangingStatus(false)
       }, 3000)
     }
-  }, [invoices, isChangingStatus, showToast, fetchInvoices])
+  }, [invoices, showToast, fetchInvoices])
 
-  // Delete invoice handler
   const deleteInvoice = useCallback(async (invoiceId: string) => {
-    const confirmed = confirm('Are you sure you want to delete this invoice?')
-    if (!confirmed) return
-
+    if (!confirm('Are you sure you want to delete this invoice?')) return
+    
     try {
-      console.log('🗑️ Deleting invoice:', invoiceId)
-      
       const response = await fetch(`/api/billing/${invoiceId}`, {
-        method: 'DELETE',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        method: 'DELETE'
       })
       
-      if (!response.ok) {
-        throw new Error('Failed to delete invoice')
+      if (response.ok) {
+        showToast('Invoice deleted successfully', 'success')
+        await fetchInvoices()
+      } else {
+        const error = await response.json()
+        showToast(`Failed to delete invoice: ${error.error}`, 'error')
       }
-      
-      // Remove from local state
-      setInvoices(prevInvoices => prevInvoices.filter(inv => inv.$id !== invoiceId))
-      showToast('Invoice deleted successfully', 'success')
-      
     } catch (error) {
       console.error('❌ Error deleting invoice:', error)
       showToast('Failed to delete invoice', 'error')
     }
-  }, [showToast])
+  }, [showToast, fetchInvoices])
 
   // Group invoices by customer with CORRECT status logic
   const customerGroups = useMemo(() => {
@@ -289,8 +336,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       const matchesSearch = searchTerm === '' || 
         group.patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         group.patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.patient.patientNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        group.invoices.some(inv => inv.invoiceNo.toLowerCase().includes(searchTerm.toLowerCase()))
+        group.patient.patientNo.toLowerCase().includes(searchTerm.toLowerCase())
       
       const matchesStatus = statusFilter === 'all' || group.status === statusFilter
       
@@ -298,113 +344,46 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     })
   }, [customerGroups, searchTerm, statusFilter])
 
-  // Auto-refresh with smart timing - FIXED DEPENDENCIES
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isChangingStatus) {
-        console.log('🔄 Auto-refresh triggered')
-        fetchInvoices()
+  const toggleGroupExpansion = (patientId: string) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(patientId)) {
+        newSet.delete(patientId)
       } else {
-        console.log('⏸️ Auto-refresh skipped - status change in progress')
+        newSet.add(patientId)
       }
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(interval)
-  }, [isChangingStatus]) // Only depend on isChangingStatus, not fetchInvoices
-
-  // Focus-based refresh - FIXED DEPENDENCIES
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('🔄 Window focused, refreshing invoices...')
-      fetchInvoices()
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, []) // Empty dependency array to prevent re-registration
-
-  // Initial load - FIXED DEPENDENCIES
-  useEffect(() => {
-    fetchInvoices(true)
-  }, []) // Empty dependency array to run only once
-
-  // Status badge component
-  const StatusBadge = ({ status }: { status: string }) => {
-    const getStatusConfig = (status: string) => {
-      switch (status) {
-        case 'paid':
-          return { 
-            text: 'Fully Paid', 
-            className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-            icon: CheckCircle
-          }
-        case 'overdue':
-          return { 
-            text: 'Overdue', 
-            className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-            icon: AlertTriangle
-          }
-        case 'sent':
-          return { 
-            text: 'Sent', 
-            className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-            icon: Clock
-          }
-        case 'draft':
-          return { 
-            text: 'Draft', 
-            className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200',
-            icon: FileText
-          }
-        default:
-          return { 
-            text: 'Outstanding', 
-            className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-            icon: Clock
-          }
-      }
-    }
-
-    const config = getStatusConfig(status)
-    const Icon = config.icon
-
-    return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${config.className}`}>
-        <Icon className="w-3 h-3" />
-        {config.text}
-      </span>
-    )
+      return newSet
+    })
   }
 
-  // Status dropdown component
-  const StatusDropdown = ({ invoice }: { invoice: Invoice }) => {
-    const statusOptions = [
-      { value: 'draft', label: 'Draft' },
-      { value: 'sent', label: 'Sent' },
-      { value: 'paid', label: 'Paid' },
-      { value: 'overdue', label: 'Overdue' }
-    ]
+  const expandAllGroups = () => {
+    setExpandedGroups(new Set(customerGroups.map(group => group.patient.id)))
+  }
 
+  const collapseAllGroups = () => {
+    setExpandedGroups(new Set())
+  }
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      paid: { color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', icon: CheckCircle },
+      overdue: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: AlertTriangle },
+      sent: { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200', icon: FileText },
+      draft: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200', icon: FileText },
+      outstanding: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', icon: AlertTriangle }
+    }
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.outstanding
+    const Icon = config.icon
+    
     return (
-      <select
-        value={invoice.status}
-        onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
-        data-invoice-id={invoice.$id}
-        disabled={isChangingStatus}
-        className={`px-3 py-2 rounded-lg text-sm font-medium border cursor-pointer transition-all duration-200 hover:shadow-md ${
-          invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
-          invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
-          invoice.status === 'sent' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
-          invoice.status === 'draft' ? 'border-gray-300 bg-gray-50 dark:bg-gray-900/20' :
-          'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
-        } ${isChangingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        {statusOptions.map(option => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        <Icon className="w-3 h-3" />
+        {status === 'outstanding' ? 'Outstanding' : 
+         status === 'sent' ? 'Sent' : 
+         status === 'draft' ? 'Draft' :
+         status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
     )
   }
 
@@ -413,86 +392,22 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Billing Management
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Manage invoices and track payments
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Billing</h1>
+          <p className="text-slate-600 dark:text-slate-400">Manage invoices and payments</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => fetchInvoices(true)}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          
+        <div className="flex items-center gap-2">
           <Link
             href="/billing/new"
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <DollarSign className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
             New Invoice
           </Link>
         </div>
       </div>
 
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search invoices, patients..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        >
-          <option value="all">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="sent">Sent</option>
-          <option value="paid">Paid</option>
-          <option value="overdue">Overdue</option>
-          <option value="outstanding">Outstanding</option>
-        </select>
-        
-        <div className="flex gap-2">
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`px-3 py-2 rounded-lg transition-colors ${
-              viewMode === 'cards' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-            }`}
-          >
-            Cards
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`px-3 py-2 rounded-lg transition-colors ${
-              viewMode === 'table' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-            }`}
-          >
-            Table
-          </button>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
@@ -549,50 +464,122 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-slate-600 dark:text-slate-400">Loading invoices...</span>
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+            <RefreshCw className="w-5 h-5 animate-spin" />
+            Loading invoices...
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="font-medium">Error loading invoices</span>
+          </div>
+          <p className="text-red-700 dark:text-red-300 mt-1">{error}</p>
+        </div>
+      )}
+
+      {/* Controls */}
+      {!loading && !error && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search patients..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Status</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="sent">Sent</option>
+              <option value="draft">Draft</option>
+              <option value="outstanding">Outstanding</option>
+            </select>
+            
+            <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg">
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`p-2 ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={expandAllGroups}
+                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              >
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllGroups}
+                className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
+              >
+                Collapse All
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Customer Groups */}
-      {!loading && (
+      {!loading && !error && filteredGroups.length > 0 && (
         <div className="space-y-4">
-          {filteredGroups.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                No invoices found
-              </h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-4">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'Get started by creating your first invoice'
-                }
-              </p>
-              {!searchTerm && statusFilter === 'all' && (
-                <Link
-                  href="/billing/new"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  Create Invoice
-                </Link>
-              )}
-            </div>
-          ) : (
-            filteredGroups.map((group) => (
+          {filteredGroups.map((group) => {
+            const isExpanded = expandedGroups.has(group.patient.id)
+            
+            return (
               <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {/* Customer Header */}
+                {/* Group Header */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                          {group.patient.firstName} {group.patient.lastName}
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                          Patient No: {group.patient.patientNo} • {group.invoices.length} invoice(s)
-                        </p>
+                      <button
+                        onClick={() => toggleGroupExpansion(group.patient.id)}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                        )}
+                      </button>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                            {group.patient.firstName} {group.patient.lastName}
+                          </h3>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Patient No: {group.patient.patientNo} • {group.invoices.length} invoice(s)
+                          </p>
+                        </div>
                       </div>
                     </div>
                     
@@ -611,79 +598,74 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                         </p>
                       </div>
                       
-                      <StatusBadge status={group.status} />
-                      
-                      <button
-                        onClick={() => {
-                          const newExpanded = new Set(expandedGroups)
-                          if (newExpanded.has(group.patient.id)) {
-                            newExpanded.delete(group.patient.id)
-                          } else {
-                            newExpanded.add(group.patient.id)
-                          }
-                          setExpandedGroups(newExpanded)
-                        }}
-                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                      >
-                        <MoreVertical className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                      </button>
+                      <div className="text-right">
+                        {getStatusBadge(group.status)}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Invoice List */}
-                {expandedGroups.has(group.patient.id) && (
+                {/* Group Invoices */}
+                {isExpanded && (
                   <div className="p-6">
                     {viewMode === 'cards' ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {group.invoices.map((invoice) => (
-                          <div key={invoice.$id} className="bg-slate-50 dark:bg-slate-700 p-4 rounded-lg border border-slate-200 dark:border-slate-600">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
-                                  {invoice.invoiceNo}
-                                </h4>
-                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                  Due: {new Date(invoice.dueDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <StatusBadge status={invoice.status} />
+                          <div key={invoice.$id} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                {invoice.invoiceNo}
+                              </h4>
+                              {getStatusBadge(invoice.status)}
                             </div>
                             
-                            <div className="space-y-2 mb-4">
-                              <div className="flex justify-between text-sm">
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
                                 <span className="text-slate-600 dark:text-slate-400">Amount:</span>
                                 <span className="font-medium text-slate-900 dark:text-slate-100">
                                   {formatCurrency(invoice.amount, currency)}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-slate-600 dark:text-slate-400">Balance:</span>
+                              <div className="flex justify-between">
+                                <span className="text-slate-600 dark:text-slate-400">Outstanding:</span>
                                 <span className={`font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                   {formatCurrency(invoice.balance, currency)}
                                 </span>
                               </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-600 dark:text-slate-400">Due Date:</span>
+                                <span className="text-slate-900 dark:text-slate-100">
+                                  {new Date(invoice.dueDate).toLocaleDateString()}
+                                </span>
+                              </div>
                             </div>
                             
-                            <div className="space-y-2">
-                              <StatusDropdown invoice={invoice} />
+                            <div className="flex items-center gap-2 mt-4">
+                              <select
+                                value={invoice.status}
+                                onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
+                                data-invoice-id={invoice.$id}
+                                className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
+                                  invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
+                                  invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
+                                  invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
+                                  invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
+                                  'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
+                                }`}
+                              >
+                                <option value="draft">Draft</option>
+                                <option value="sent">Sent</option>
+                                <option value="paid">Paid</option>
+                                <option value="overdue">Overdue</option>
+                              </select>
                               
-                              <div className="flex gap-2">
-                                <Link
-                                  href={`/billing/${invoice.$id}`}
-                                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  View
-                                </Link>
-                                
-                                <button
-                                  onClick={() => deleteInvoice(invoice.$id)}
-                                  className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                              <Link
+                                href={`/billing/${invoice.$id}`}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View
+                              </Link>
                             </div>
                           </div>
                         ))}
@@ -693,54 +675,54 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                         <table className="w-full">
                           <thead>
                             <tr className="border-b border-slate-200 dark:border-slate-600">
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Invoice No.</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Issue Date</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Due Date</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Amount</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Balance</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Status</th>
-                              <th className="text-left py-3 px-4 font-medium text-slate-900 dark:text-slate-100">Actions</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Invoice</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Amount</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Outstanding</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Due Date</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Status</th>
+                              <th className="text-left py-3 px-4 font-medium text-slate-600 dark:text-slate-400">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {group.invoices.map((invoice) => (
-                              <tr key={invoice.$id} className="border-b border-slate-200 dark:border-slate-600">
+                              <tr key={invoice.$id} className="border-b border-slate-100 dark:border-slate-700">
                                 <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{invoice.invoiceNo}</td>
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
-                                  {new Date(invoice.issueDate).toLocaleDateString()}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
-                                  {new Date(invoice.dueDate).toLocaleDateString()}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
-                                  {formatCurrency(invoice.amount, currency)}
-                                </td>
+                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, currency)}</td>
                                 <td className="py-3 px-4">
                                   <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                     {formatCurrency(invoice.balance, currency)}
                                   </span>
                                 </td>
-                                <td className="py-3 px-4">
-                                  <StatusDropdown invoice={invoice} />
+                                <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">
+                                  {new Date(invoice.dueDate).toLocaleDateString()}
                                 </td>
                                 <td className="py-3 px-4">
-                                  <div className="flex gap-2">
-                                    <Link
-                                      href={`/billing/${invoice.$id}`}
-                                      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                                    >
-                                      <Eye className="w-3 h-3" />
-                                      View
-                                    </Link>
-                                    
-                                    <button
-                                      onClick={() => deleteInvoice(invoice.$id)}
-                                      className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                      Delete
-                                    </button>
-                                  </div>
+                                  <select
+                                    value={invoice.status}
+                                    onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
+                                    data-invoice-id={invoice.$id}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
+                                      invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
+                                      invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
+                                      invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
+                                      invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
+                                      'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
+                                    }`}
+                                  >
+                                    <option value="draft">Draft</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="overdue">Overdue</option>
+                                  </select>
+                                </td>
+                                <td className="py-3 px-4">
+                                  <Link
+                                    href={`/billing/${invoice.$id}`}
+                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    View
+                                  </Link>
                                 </td>
                               </tr>
                             ))}
