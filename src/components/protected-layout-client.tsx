@@ -66,9 +66,9 @@ export default function ProtectedLayoutClient({
 
   const handleLogout = async () => {
     try {
-      console.log('🚪 Starting logout process...');
+      console.log('🚪 Starting comprehensive logout process...');
       
-      // Call logout API to clear session
+      // Step 1: Call logout API to clear session server-side
       const response = await fetch('/api/logout', {
         method: 'POST',
         headers: {
@@ -78,27 +78,70 @@ export default function ProtectedLayoutClient({
       
       if (response.ok) {
         console.log('✅ Logout API successful');
-        
-        // Clear any local storage/session storage
+      } else {
+        console.log('⚠️ Logout API failed, using fallback');
+      }
+      
+      // Step 2: Clear all local storage/session storage
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        console.log('✅ Local storage cleared');
+      } catch (error) {
+        console.log('⚠️ Local storage clear failed:', error);
+      }
+      
+      // Step 3: Clear cookies manually as fallback
+      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
+      const cookiesToClear = [
+        `a_session_${projectId}`,
+        `a_session_${projectId}_legacy`,
+        'a_session',
+        'logout',
+        'session_cleared'
+      ];
+      
+      cookiesToClear.forEach(cookieName => {
+        // Clear with different path and domain combinations
+        document.cookie = `${cookieName}=; path=/; max-age=0`;
+        document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
+        document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`;
+        document.cookie = `${cookieName}=; path=/; secure; max-age=0`;
+      });
+      
+      console.log('✅ Manual cookie cleanup completed');
+      
+      // Step 4: Set logout trigger cookies
+      document.cookie = 'logout=true; path=/; max-age=1';
+      document.cookie = 'session_cleared=true; path=/; max-age=1';
+      
+      // Step 5: Force redirect to login page with cache busting
+      const loginUrl = `/login?logout=${Date.now()}`;
+      window.location.href = loginUrl;
+      
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      
+      // Emergency fallback: clear everything and redirect
+      try {
         localStorage.clear();
         sessionStorage.clear();
         
-        // Set logout cookie to trigger middleware cleanup
-        document.cookie = 'logout=true; path=/; max-age=1';
+        // Clear all possible cookies
+        const allCookies = document.cookie.split(';');
+        allCookies.forEach(cookie => {
+          const cookieName = cookie.split('=')[0].trim();
+          document.cookie = `${cookieName}=; path=/; max-age=0`;
+          document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
+        });
         
-        // Force redirect to login page
+        // Force redirect
         window.location.href = '/login';
-      } else {
-        console.log('⚠️ Logout API failed, using fallback');
-        // Fallback: clear cookies manually and redirect
-        document.cookie = 'logout=true; path=/; max-age=1';
-        window.location.href = '/login';
+      } catch (fallbackError) {
+        console.error('❌ Emergency fallback failed:', fallbackError);
+        // Last resort: reload page
+        window.location.reload();
       }
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      // Fallback: clear cookies manually and redirect
-      document.cookie = 'logout=true; path=/; max-age=1';
-      window.location.href = '/login';
     }
   }
 

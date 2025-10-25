@@ -36,16 +36,38 @@ export async function middleware(request: NextRequest) {
     });
   }
   
-  // Check for logout cookie - if present, clear session and redirect to login
+  // Check for logout or session cleared cookies - comprehensive cleanup
   const logoutCookie = request.cookies.get('logout')
-  if (logoutCookie) {
-    console.log('🚪 Logout detected, clearing session and redirecting to login')
+  const sessionClearedCookie = request.cookies.get('session_cleared')
+  
+  if (logoutCookie || sessionClearedCookie) {
+    console.log('🚪 Logout/session cleared detected, performing comprehensive cleanup')
     const response = NextResponse.redirect(new URL('/login', request.url))
-    // Clear all session cookies
-    response.cookies.delete(`a_session_${projectId}`)
-    response.cookies.delete(`a_session_${projectId}_legacy`)
-    response.cookies.delete('a_session')
-    response.cookies.delete('logout')
+    
+    // Clear ALL possible session cookies with multiple strategies
+    const cookieOptions = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax'
+    const cookieOptionsSecure = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure'
+    
+    // Primary session cookies
+    response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptions}`)
+    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptions}`)
+    response.headers.append('Set-Cookie', `a_session=; ${cookieOptions}`)
+    
+    // Secure variants
+    response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptionsSecure}`)
+    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptionsSecure}`)
+    response.headers.append('Set-Cookie', `a_session=; ${cookieOptionsSecure}`)
+    
+    // Domain-specific variants
+    response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `a_session=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
+    
+    // Clear trigger cookies
+    response.headers.append('Set-Cookie', `logout=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `session_cleared=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    
+    console.log('✅ Comprehensive session cleanup completed')
     return response
   }
   

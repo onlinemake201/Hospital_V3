@@ -16,11 +16,46 @@ export default function LoginPage() {
     console.log('🔗 Current URL:', window.location.href)
     console.log('🌍 User Agent:', navigator.userAgent)
     
+    // Check for logout parameter and clear any remaining cookies
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.has('logout')) {
+      console.log('🚪 Logout parameter detected, performing additional cleanup')
+      performAdditionalCleanup()
+    }
+    
     // Check if user is already logged in and redirect
     checkExistingSession()
     
     console.log('🚀 ===== LOGIN PAGE READY =====')
   }, [])
+  
+  const performAdditionalCleanup = () => {
+    try {
+      // Clear all possible cookies as additional safety measure
+      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef'
+      const cookiesToClear = [
+        `a_session_${projectId}`,
+        `a_session_${projectId}_legacy`,
+        'a_session',
+        'logout',
+        'session_cleared'
+      ]
+      
+      cookiesToClear.forEach(cookieName => {
+        document.cookie = `${cookieName}=; path=/; max-age=0`
+        document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`
+        document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`
+      })
+      
+      // Clear local storage
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      console.log('✅ Additional cleanup completed')
+    } catch (error) {
+      console.log('⚠️ Additional cleanup failed:', error)
+    }
+  }
 
   const checkExistingSession = async () => {
     try {
