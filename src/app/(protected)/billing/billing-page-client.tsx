@@ -65,6 +65,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
   const [loading, setLoading] = useState(false)
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set())
   const [currency, setCurrency] = useState('CHF')
+  const [isChangingStatus, setIsChangingStatus] = useState(false)
   const router = useRouter()
   const { showToast, ToastContainer } = useToast()
   const { showConfirm, ConfirmModalComponent } = useConfirm()
@@ -89,12 +90,16 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
   // Automatic refresh every 30 seconds for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refresh triggered')
-      fetchInvoices()
+      if (!isChangingStatus) {
+        console.log('🔄 Auto-refresh triggered')
+        fetchInvoices()
+      } else {
+        console.log('⏸️ Auto-refresh skipped - status change in progress')
+      }
     }, 30000) // 30 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [isChangingStatus])
 
   // Manual status update function for specific invoice
   const updateInvoiceStatus = async (invoiceId: string) => {
@@ -123,6 +128,9 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
   // Change invoice status function
   const changeInvoiceStatus = async (invoiceId: string, newStatus: string) => {
     console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
+    
+    // Set flag to prevent auto-refresh during status change
+    setIsChangingStatus(true)
     
     try {
       console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
@@ -209,6 +217,10 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
           console.log('✅ Select reset to original value:', invoice.status)
         }
       }
+    } finally {
+      // Always reset the flag after status change attempt
+      console.log('🔄 Resetting isChangingStatus flag')
+      setIsChangingStatus(false)
     }
   }
 
