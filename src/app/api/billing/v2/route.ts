@@ -35,6 +35,23 @@ export async function GET() {
     // Process invoices and apply status updates
     const processedInvoices = await Promise.all(
       invoicesResponse.documents.map(async (invoice) => {
+        // Fix inconsistent paid invoices with non-zero balance
+        if (invoice.status === 'paid' && Number(invoice.balance) > 0) {
+          console.log('🔧 Fixing inconsistent paid invoice:', invoice.$id, 'balance:', invoice.balance)
+          try {
+            await databases.updateDocument(
+              process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
+              COLLECTIONS.INVOICES,
+              invoice.$id,
+              { balance: 0 }
+            )
+            invoice.balance = 0
+            console.log('✅ Fixed balance for paid invoice:', invoice.$id)
+          } catch (error) {
+            console.error('❌ Failed to fix balance for invoice:', invoice.$id, error)
+          }
+        }
+        
         // Apply status update logic
         const updatedInvoice = await updateInvoiceStatus(invoice)
         
