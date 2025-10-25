@@ -595,10 +595,10 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                               <td className="py-3 px-4 font-mono text-sm text-slate-900 dark:text-slate-100">{invoice.invoiceNo}</td>
                               <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{new Date(invoice.issueDate).toLocaleDateString('en-US')}</td>
                               <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{new Date(invoice.dueDate).toLocaleDateString('en-US')}</td>
-                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, invoice.currency || 'KES')}</td>
+                              <td className="py-3 px-4 text-sm text-slate-900 dark:text-slate-100">{formatCurrency(invoice.amount, invoice.currency || currency || 'CHF')}</td>
                               <td className="py-3 px-4">
                                 <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {formatCurrency(invoice.balance, invoice.currency || 'KES')}
+                                  {formatCurrency(invoice.balance, invoice.currency || currency || 'CHF')}
                                 </span>
                               </td>
                               <td className="py-3 px-4">

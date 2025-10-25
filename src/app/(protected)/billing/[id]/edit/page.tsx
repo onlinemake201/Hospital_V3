@@ -132,6 +132,17 @@ export default function EditInvoicePage() {
         return
       }
 
+      const totalAmount = getTotalAmount()
+      
+      console.log('📝 Invoice edit data:', {
+        invoiceId: invoiceId,
+        originalBalance: invoice.balance,
+        originalAmount: invoice.amount,
+        newAmount: totalAmount,
+        preservingBalance: invoice.balance,
+        status: formData.status
+      })
+
       const response = await fetch(`/api/billing/${invoiceId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -140,8 +151,9 @@ export default function EditInvoicePage() {
           dueDate: formData.dueDate,
           status: formData.status,
           items: itemsJson,
-          amount: getTotalAmount(),
-          balance: getTotalAmount()
+          amount: totalAmount,
+          // ✅ CRITICAL FIX: Preserve existing balance instead of resetting it
+          balance: invoice.balance // Keep the current balance (paid amount)
         })
       })
 
