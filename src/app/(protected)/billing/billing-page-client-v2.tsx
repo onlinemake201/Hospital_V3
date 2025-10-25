@@ -17,7 +17,11 @@ import {
   Eye,
   Plus,
   RefreshCw,
-  User
+  User,
+  Receipt,
+  DollarSign,
+  Calendar,
+  Clock
 } from 'lucide-react'
 
 interface Invoice {
@@ -65,10 +69,15 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [isChangingStatus, setIsChangingStatus] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { showToast } = useToast()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const fetchInvoices = useCallback(async (isInitial = false) => {
     if (isInitial) {
@@ -119,7 +128,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       }
     }, 30000) // 30 seconds
     return () => clearInterval(interval)
-  }, [isChangingStatus]) // Only depend on isChangingStatus
+  }, [isChangingStatus])
 
   // Focus-based refresh
   useEffect(() => {
@@ -129,12 +138,14 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, []) // Empty dependency array
+  }, [])
 
   // Initial load
   useEffect(() => {
-    fetchInvoices(true)
-  }, []) // Empty dependency array
+    if (mounted) {
+      fetchInvoices(true)
+    }
+  }, [mounted])
 
   const changeInvoiceStatus = async (invoiceId: string, newStatus: string) => {
     console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
@@ -342,408 +353,392 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      paid: { color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', icon: CheckCircle },
-      overdue: { color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: AlertTriangle },
-      sent: { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200', icon: FileText },
-      draft: { color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200', icon: FileText },
-      outstanding: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', icon: AlertTriangle }
+      paid: { label: 'Paid', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200', icon: '✅' },
+      overdue: { label: 'Overdue', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: '⚠️' },
+      sent: { label: 'Sent', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200', icon: '📤' },
+      draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200', icon: '📝' },
+      outstanding: { label: 'Outstanding', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200', icon: '⏳' }
     }
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.outstanding
-    const Icon = config.icon
     
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        <Icon className="w-3 h-3" />
-        {status === 'outstanding' ? 'Outstanding' : 
-         status === 'sent' ? 'Sent' : 
-         status === 'draft' ? 'Draft' :
-         status.charAt(0).toUpperCase() + status.slice(1)}
+        <span>{config.icon}</span>
+        {config.label}
       </span>
     )
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <p className="text-slate-600 dark:text-slate-400 text-lg font-medium">Loading invoices...</p>
+          <p className="text-slate-500 dark:text-slate-500 mt-2 text-sm">Please wait while we fetch the billing data</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Billing
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              Manage invoices and <span className="bg-blue-100 dark:bg-blue-900/20 px-2 py-1 rounded-md text-blue-700 dark:text-blue-300">track payments</span>
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/billing/new"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-4 h-4" />
-            New
-          </Link>
-        </div>
-      </div>
-
-      {/* Dashboard Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(dashboardStats.totalOutstanding, currency)}
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      {/* Modern Header (aligned with other pages) */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+              <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div className="p-3 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl">
-              <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="min-w-0">
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Billing</h1>
+              <div className="flex items-center gap-4 mt-1 sm:mt-2">
+                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">Manage invoices and <span className="bg-blue-100 dark:bg-blue-900/30 px-1 rounded">track payments</span></p>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {formatCurrency(dashboardStats.totalPaid, currency)}
-              </p>
-            </div>
-            <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {dashboardStats.overdueCount}
-              </p>
-            </div>
-            <div className="p-3 bg-gradient-to-r from-red-100 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl">
-              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {dashboardStats.totalInvoices}
-              </p>
-            </div>
-            <div className="p-3 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl">
-              <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters and Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search invoices (number, patient, amount)..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-80"
-            />
-          </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={expandAllGroups}
-            className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={collapseAllGroups}
-            className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-          >
-            Collapse All
-          </button>
-          
-          <div className="flex items-center border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-2 transition-colors ${viewMode === 'cards' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/billing/new"
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-3 font-medium flex items-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl w-full sm:w-auto justify-center"
             >
-              <Grid3X3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 transition-colors ${viewMode === 'table' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-            >
-              <List className="w-4 h-4" />
-            </button>
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">New Invoice</span>
+              <span className="xs:hidden">New</span>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Customer Groups */}
-      <div className="space-y-4">
-        {customerGroups.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No invoices found</h3>
-            <p className="text-slate-600 dark:text-slate-400">Try adjusting your search or filter criteria</p>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+
+        {/* Modern Controls */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg mb-4 sm:mb-6">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search invoices (number, patient, amount)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm sm:text-base"
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 sm:py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 min-w-[140px] text-sm sm:text-base"
+                >
+                  <option value="all">All Status</option>
+                  <option value="draft">Draft</option>
+                  <option value="sent">Sent</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+                <div className="flex bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
+                  <button
+                    onClick={() => setViewMode('cards')}
+                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                      viewMode === 'cards' 
+                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow' 
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <Grid3X3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Cards</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                      viewMode === 'list' 
+                        ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow' 
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <List className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">List</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          customerGroups.map((group) => (
-            <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              {/* Customer Header */}
-              <div 
-                className="p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-200 dark:border-slate-700"
-                onClick={() => toggleGroupExpansion(group.patient.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {expandedGroups.has(group.patient.id) ? (
-                      <ChevronDown className="w-5 h-5 text-slate-400" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-slate-400" />
-                    )}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        </div>
+
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {formatCurrency(dashboardStats.totalOutstanding, currency)}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {formatCurrency(dashboardStats.totalPaid, currency)}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl">
+                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Overdue</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {dashboardStats.overdueCount}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-red-100 to-pink-100 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Invoices</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                  {dashboardStats.totalInvoices}
+                </p>
+              </div>
+              <div className="p-3 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl">
+                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Professional Invoice Display */}
+        {viewMode === 'cards' ? (
+          /* Professional Card Grid */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+            {customerGroups.map((group) => (
+              <div key={group.patient.id} className="group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-600">
+                {/* Invoice Header */}
+                <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <div>
-                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm sm:text-base truncate">
                           {group.patient.firstName} {group.patient.lastName}
-                        </div>
-                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                        </h3>
+                        <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-mono">
                           {group.patient.patientNo}
-                        </div>
+                        </p>
                       </div>
+                    </div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors flex-shrink-0">
+                      <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {formatCurrency(group.totalAmount, currency)}
-                      </div>
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        Outstanding: {formatCurrency(group.totalBalance, currency)}
-                      </div>
+                </div>
+
+                {/* Invoice Information */}
+                <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="text-slate-600 dark:text-slate-400">Total</span>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(group.status)}
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
-                      </span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+                      {formatCurrency(group.totalAmount, currency)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="text-slate-600 dark:text-slate-400">Outstanding</span>
                     </div>
+                    <span className="font-medium text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+                      {formatCurrency(group.totalBalance, currency)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-slate-500 dark:text-slate-400" />
+                      <span className="text-slate-600 dark:text-slate-400">Invoices</span>
+                    </div>
+                    <span className="font-medium text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+                      {group.invoices.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Footer */}
+                <div className="px-4 py-3 bg-slate-50 dark:bg-slate-700/50 rounded-b-lg">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                    Click for invoice details
                   </div>
                 </div>
               </div>
-
-              {/* Invoices List */}
-              {expandedGroups.has(group.patient.id) && (
-                <div className="border-t border-slate-200 dark:border-slate-700">
-                  {viewMode === 'cards' ? (
-                    <div className="p-4 space-y-3">
-                      {group.invoices.map((invoice) => (
-                        <div key={invoice.$id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+            ))}
+          </div>
+        ) : (
+          /* Professional Table View */
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead className="bg-slate-50 dark:bg-slate-700/50">
+                  <tr>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">Invoice</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden sm:table-cell">Patient</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden md:table-cell">Date</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden lg:table-cell">Amount</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden xl:table-cell">Balance</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hidden md:table-cell">Status</th>
+                    <th className="text-left py-3 sm:py-4 px-3 sm:px-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {customerGroups.map((group) => (
+                    <tr key={group.patient.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td className="py-2 sm:py-4 px-2 sm:px-6">
+                        {/* Mobile: Compact layout with minimal spacing */}
+                        <div className="sm:hidden">
                           <div className="flex items-center gap-3">
-                            <div>
-                              <div className="font-medium text-slate-900 dark:text-slate-100">
-                                {invoice.invoiceNo}
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">
+                                {group.patient.firstName} {group.patient.lastName}
                               </div>
-                              <div className="text-sm text-slate-600 dark:text-slate-400">
-                                {new Date(invoice.issueDate).toLocaleDateString()}
+                              <div className="text-xs text-blue-600 dark:text-blue-400 font-mono">
+                                {group.patient.patientNo}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {formatCurrency(group.totalAmount, currency)} • {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
+                              </div>
+                              <div className="mt-1">
+                                {getStatusBadge(group.status)}
                               </div>
                             </div>
+                            <Link 
+                              href={`/billing/${group.invoices[0]?.$id}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Open</span>
+                            </Link>
                           </div>
-                          
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className="font-medium text-slate-900 dark:text-slate-100">
-                                {formatCurrency(invoice.amount, currency)}
-                              </div>
-                              <div className="text-sm text-slate-600 dark:text-slate-400">
-                                Balance: {formatCurrency(invoice.balance, currency)}
-                              </div>
+                        </div>
+                        
+                        {/* Desktop: Original horizontal layout */}
+                        <div className="hidden sm:block">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <select
-                                value={invoice.status}
-                                onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
-                                data-invoice-id={invoice.$id}
-                                className={`px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-600 cursor-pointer transition-all duration-200 hover:shadow-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 ${
-                                  invoice.status === 'paid' ? 'border-green-300 bg-green-50 dark:bg-green-900/20' :
-                                  invoice.status === 'partial' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20' :
-                                  invoice.status === 'overdue' ? 'border-red-300 bg-red-50 dark:bg-red-900/20' :
-                                  invoice.status === 'sent' || invoice.status === 'pending' ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20' :
-                                  'border-gray-300 bg-gray-50 dark:bg-gray-900/20'
-                                }`}
-                              >
-                                <option value="draft">Draft</option>
-                                <option value="sent">Sent</option>
-                                <option value="paid">Paid</option>
-                                <option value="overdue">Overdue</option>
-                              </select>
-                              
-                              <Link
-                                href={`/billing/${invoice.$id}`}
-                                className="p-2 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Link>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm sm:text-base truncate">
+                                {group.patient.firstName} {group.patient.lastName}
+                              </div>
+                              <div className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 font-mono">
+                                {group.patient.patientNo}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-700/50">
-                          <tr>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Invoice
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Patient
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Balance
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                          {group.invoices.map((invoice) => (
-                            <tr key={invoice.$id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                              <td className="py-4 px-6">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                      {invoice.invoiceNo}
-                                    </div>
-                                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                                      {invoice.patient?.firstName} {invoice.patient?.lastName}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                  {invoice.patient?.firstName} {invoice.patient?.lastName}
-                                </div>
-                                <div className="text-sm text-slate-500 dark:text-slate-400">
-                                  {invoice.patient?.patientNo}
-                                </div>
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                  {new Date(invoice.issueDate).toLocaleDateString()}
-                                </div>
-                                <div className="text-sm text-slate-500 dark:text-slate-400">
-                                  {new Date(invoice.issueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </div>
-                              </td>
-                              <td className="py-4 px-6 text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {formatCurrency(invoice.amount, currency)}
-                              </td>
-                              <td className="py-4 px-6">
-                                <span className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                                  {formatCurrency(invoice.balance, currency)}
-                                </span>
-                              </td>
-                              <td className="py-4 px-6">
-                                {getStatusBadge(invoice.status)}
-                              </td>
-                              <td className="py-4 px-6">
-                                <div className="flex items-center gap-2">
-                                  <Link
-                                    href={`/billing/${invoice.$id}`}
-                                    className="inline-flex items-center gap-1 px-3 py-2 text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    View
-                                  </Link>
-                                  {invoice.status === 'paid' ? (
-                                    <button
-                                      disabled
-                                      className="inline-flex items-center gap-1 px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-lg cursor-not-allowed"
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                      Invoiced
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => changeInvoiceStatus(invoice.$id, 'paid')}
-                                      className="inline-flex items-center gap-1 px-3 py-2 text-sm bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                      Invoice
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden sm:table-cell">
+                        <div className="text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                          {group.patient.firstName} {group.patient.lastName}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {group.patient.patientNo}
+                        </div>
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">
+                        <div className="text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                          {group.invoices.length > 0 ? new Date(group.invoices[0].issueDate).toLocaleDateString() : 'N/A'}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                          {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
+                        </div>
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden lg:table-cell">
+                        <div className="text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                          {formatCurrency(group.totalAmount, currency)}
+                        </div>
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden xl:table-cell">
+                        <span className={`text-xs sm:text-sm font-medium ${Number(group.totalBalance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {formatCurrency(group.totalBalance, currency)}
+                        </span>
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6 hidden md:table-cell">
+                        {getStatusBadge(group.status)}
+                      </td>
+                      <td className="py-3 sm:py-4 px-3 sm:px-6">
+                        {/* Desktop: Show button in Actions column */}
+                        <div className="hidden sm:block">
+                          <Link 
+                            href={`/billing/${group.invoices[0]?.$id}`}
+                            className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden xs:inline">Open File</span>
+                            <span className="xs:hidden">Open</span>
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))
+          </div>
+        )}
+
+        {/* Professional Empty State */}
+        {customerGroups.length === 0 && (
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Receipt className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+              {searchTerm ? 'No invoices found' : 'No invoices recorded yet'}
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-md mx-auto">
+              {searchTerm 
+                ? 'Try a different search term or add a new invoice.'
+                : 'Create your first invoice to start billing management.'
+              }
+            </p>
+            {!searchTerm && (
+              <Link 
+                href="/billing/new"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Create First Invoice
+              </Link>
+            )}
+          </div>
         )}
       </div>
     </div>
