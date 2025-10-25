@@ -64,7 +64,8 @@ export default function NewInvoicePage() {
   const [formData, setFormData] = useState({
     patientId: '',
     dueDate: '',
-    paymentMethod: 'cash'
+    paymentMethod: 'cash',
+    notes: ''
   })
 
   const { showToast } = useToast()
@@ -197,7 +198,8 @@ export default function NewInvoicePage() {
           })),
           subtotal: getTotalAmount(),
           total: getTotalAmount(),
-          issueDate: new Date().toISOString().split('T')[0]
+          issueDate: new Date().toISOString().split('T')[0],
+          notes: formData.notes
         })
       })
 
@@ -461,6 +463,22 @@ export default function NewInvoicePage() {
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-3 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 />
               </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-3">
+              <label htmlFor="notes" className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Notes
+              </label>
+              <textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Additional notes or comments for this invoice..."
+                rows={4}
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-3 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+              />
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200 dark:border-slate-700">
