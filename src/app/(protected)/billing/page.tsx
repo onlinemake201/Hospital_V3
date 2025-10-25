@@ -1,33 +1,13 @@
-import BillingPage from './billing-page-client'
-import { getApiUrl } from '@/lib/url-utils'
+import BillingPageClientV2 from './billing-page-client-v2'
+import { getCurrency } from '@/lib/system-settings'
 
-async function getBillingData() {
-  try {
-    const response = await fetch(getApiUrl('/api/billing'), {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+export default async function BillingPage() {
+  const currency = await getCurrency()
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch billing data')
-    }
-
-    const data = await response.json()
-    return {
-      invoices: data.invoices || []
-    }
-  } catch (error) {
-    console.error('Error fetching billing data:', error)
-    return {
-      invoices: []
-    }
-  }
-}
-
-export default async function BillingPageServer() {
-  // Disable server-side data fetching to avoid stale data
-  // const billingData = await getBillingData()
-  
-  return <BillingPage initialInvoices={[]} />
+  return (
+    <BillingPageClientV2 
+      initialInvoices={[]} 
+      currency={currency} 
+    />
+  )
 }
