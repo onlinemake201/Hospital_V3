@@ -204,7 +204,11 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       id
     )
 
-    return NextResponse.json({ success: true })
+    console.log('✅ Invoice deleted successfully:', id)
+    return NextResponse.json({ 
+      success: true,
+      message: 'Invoice deleted successfully'
+    })
   } catch (error: any) {
     console.error('Error deleting invoice:', error)
     const appwriteError = handleAppwriteError(error)
