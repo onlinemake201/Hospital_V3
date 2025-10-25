@@ -17,6 +17,15 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // IMMEDIATE CHECK: Look for logout cookie first
+        if (document.cookie.includes('logout=true')) {
+          console.log('🚪 Logout cookie detected - immediate redirect to homepage')
+          setIsAuthenticated(false)
+          setIsLoading(false)
+          router.push('/')
+          return
+        }
+        
         const user = await authHelpers.getCurrentUser()
         setIsAuthenticated(!!user)
       } catch (error) {
@@ -42,15 +51,15 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
     )
   }
 
-  // Redirect to login if not authenticated
+  // Redirect to homepage if not authenticated
   if (!isAuthenticated) {
     if (typeof window !== 'undefined') {
-      router.push('/login')
+      router.push('/')
     }
     return fallback || (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Weiterleitung zur Anmeldung...</p>
+          <p className="text-gray-600">Weiterleitung zur Startseite...</p>
         </div>
       </div>
     )

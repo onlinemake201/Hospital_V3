@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
                        request.cookies.get(`a_session_${projectId}_legacy`) ||
                        request.cookies.get('a_session')
   
-  // Enhanced debug logging for production troubleshooting
+  // Enhanced debug logging for troubleshooting
   console.log('🔍 Middleware session check:', {
     pathname,
     projectId,
@@ -34,46 +34,27 @@ export async function middleware(request: NextRequest) {
     sessionFound: !!sessionCookie,
     allCookies: request.cookies.getAll().map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })),
     userAgent: request.headers.get('user-agent')?.substring(0, 50),
-    host: request.headers.get('host')
+    host: request.headers.get('host'),
+    timestamp: new Date().toISOString()
   });
   
-  // Check for logout or session cleared cookies - comprehensive cleanup
+  // IMMEDIATE LOGOUT DETECTION - No delays, instant redirect
   const logoutCookie = request.cookies.get('logout')
   const sessionClearedCookie = request.cookies.get('session_cleared')
   
   if (logoutCookie || sessionClearedCookie) {
-    console.log('🚪 Logout/session cleared detected, performing comprehensive cleanup')
-    const response = NextResponse.redirect(new URL('/login', request.url))
+    console.log('🚪 IMMEDIATE LOGOUT DETECTED - Instant redirect to login')
     
-    // Clear ALL possible session cookies with multiple strategies
-    const isProduction = process.env.NODE_ENV === 'production';
-    const cookieOptions = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax'
-    const cookieOptionsSecure = 'Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure'
+    // IMMEDIATE REDIRECT - No complex cleanup, just redirect to homepage
+    const response = NextResponse.redirect(new URL('/', request.url))
     
-    // Primary session cookies (no domain for production compatibility)
-    response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptions}`)
-    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptions}`)
-    response.headers.append('Set-Cookie', `a_session=; ${cookieOptions}`)
-    
-    // Secure variants (only for production)
-    if (isProduction) {
-      response.headers.append('Set-Cookie', `a_session_${projectId}=; ${cookieOptionsSecure}`)
-      response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; ${cookieOptionsSecure}`)
-      response.headers.append('Set-Cookie', `a_session=; ${cookieOptionsSecure}`)
-    }
-    
-    // Domain-specific variants (only for localhost development)
-    if (!isProduction) {
-      response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
-      response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
-      response.headers.append('Set-Cookie', `a_session=; Path=/; Domain=localhost; Max-Age=0; HttpOnly; SameSite=Lax`)
-    }
-    
-    // Clear trigger cookies
+    // Quick cookie clearing
+    response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `a_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
     response.headers.append('Set-Cookie', `logout=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `session_cleared=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
     
-    console.log('✅ Comprehensive session cleanup completed')
+    console.log('✅ IMMEDIATE LOGOUT COMPLETED')
     return response
   }
   
@@ -90,10 +71,10 @@ export async function middleware(request: NextRequest) {
                        pathname.startsWith('/demo') ||
                        pathname === '/not-found';
   
-  // If no session cookie and trying to access protected route, redirect to login
+  // If no session cookie and trying to access protected route, redirect to homepage
   if (!sessionCookie && !isPublicRoute) {
     console.log('🚫 Access denied - no session cookie for protected route:', pathname);
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // If user is on root and has session, redirect to dashboard

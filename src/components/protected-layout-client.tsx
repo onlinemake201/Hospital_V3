@@ -65,111 +65,43 @@ export default function ProtectedLayoutClient({
     return baseItems
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    console.log('🚪 IMMEDIATE LOGOUT - Using direct logout endpoint...');
+    
+    // IMMEDIATE ACTION: Use direct logout endpoint for guaranteed logout
     try {
-      console.log('🚪 Starting comprehensive logout process...');
+      // Clear all storage immediately
+      localStorage.clear();
+      sessionStorage.clear();
       
-      // Step 0: Try Appwrite SDK logout first
-      try {
-        console.log('🔄 Attempting Appwrite SDK logout...');
-        await authHelpers.logout();
-        console.log('✅ Appwrite SDK logout successful');
-      } catch (error) {
-        console.log('⚠️ Appwrite SDK logout failed:', error);
-      }
-      
-      // Step 1: Call logout API to clear session server-side
-      const response = await fetch('/api/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        console.log('✅ Logout API successful');
-      } else {
-        console.log('⚠️ Logout API failed, using fallback');
-      }
-      
-      // Step 2: Clear all local storage/session storage
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        console.log('✅ Local storage cleared');
-      } catch (error) {
-        console.log('⚠️ Local storage clear failed:', error);
-      }
-      
-      // Step 3: Clear cookies manually as fallback
-      const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
-      const cookiesToClear = [
-        `a_session_${projectId}`,
-        `a_session_${projectId}_legacy`,
-        'a_session',
-        'logout',
-        'session_cleared'
-      ];
-      
-      // Comprehensive cookie clearing with multiple strategies
-      cookiesToClear.forEach(cookieName => {
-        // Strategy 1: Basic clearing
-        document.cookie = `${cookieName}=; path=/; max-age=0`;
-        document.cookie = `${cookieName}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        
-        // Strategy 2: Domain-specific clearing for localhost
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
-          document.cookie = `${cookieName}=; path=/; domain=.localhost; max-age=0`;
-          document.cookie = `${cookieName}=; path=/; domain=localhost; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        }
-        
-        // Strategy 3: Secure variants for HTTPS (production)
-        if (window.location.protocol === 'https:') {
-          document.cookie = `${cookieName}=; path=/; secure; max-age=0`;
-          document.cookie = `${cookieName}=; path=/; secure; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        }
-        
-        // Strategy 4: SameSite variants
-        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Lax`;
-        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=Strict`;
-        document.cookie = `${cookieName}=; path=/; max-age=0; SameSite=None; Secure`;
-      });
-      
-      console.log('✅ Manual cookie cleanup completed');
-      
-      // Step 4: Set logout trigger cookies
-      document.cookie = 'logout=true; path=/; max-age=1';
-      document.cookie = 'session_cleared=true; path=/; max-age=1';
-      
-      // Step 5: Force redirect to login page with cache busting
-      const loginUrl = `/login?logout=${Date.now()}`;
-      window.location.href = loginUrl;
+      // Use direct logout endpoint for guaranteed logout
+      window.location.href = '/api/direct-logout';
       
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      
-      // Emergency fallback: clear everything and redirect
+      console.error('❌ Immediate logout error:', error);
+      // Emergency: Force redirect even if clearing fails
+      window.location.href = '/';
+    }
+    
+    // Background cleanup (non-blocking)
+    setTimeout(async () => {
       try {
-        localStorage.clear();
-        sessionStorage.clear();
+        console.log('🔄 Background cleanup starting...');
         
-        // Clear all possible cookies
-        const allCookies = document.cookie.split(';');
-        allCookies.forEach(cookie => {
-          const cookieName = cookie.split('=')[0].trim();
-          document.cookie = `${cookieName}=; path=/; max-age=0`;
-          document.cookie = `${cookieName}=; path=/; domain=localhost; max-age=0`;
+        // Try Appwrite SDK logout in background
+        await authHelpers.logout();
+        
+        // Try server-side logout in background
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         });
         
-        // Force redirect
-        window.location.href = '/login';
-      } catch (fallbackError) {
-        console.error('❌ Emergency fallback failed:', fallbackError);
-        // Last resort: reload page
-        window.location.reload();
+        console.log('✅ Background cleanup completed');
+      } catch (error) {
+        console.log('⚠️ Background cleanup failed:', error);
       }
-    }
+    }, 100);
   }
 
   return (
