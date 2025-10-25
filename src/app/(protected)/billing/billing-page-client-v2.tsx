@@ -73,6 +73,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [isChangingStatus, setIsChangingStatus] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [showAllInvoices, setShowAllInvoices] = useState(false)
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -259,6 +260,17 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       return matchesSearch && matchesStatus
     })
 
+    // If showAllInvoices is true, create individual groups for each invoice
+    if (showAllInvoices) {
+      return filtered.map(invoice => ({
+        patient: invoice.patient || { id: invoice.patientId, firstName: 'Unknown', lastName: 'Patient', patientNo: 'N/A' },
+        invoices: [invoice],
+        totalAmount: Number(invoice.amount),
+        totalBalance: invoice.status === 'paid' ? 0 : Number(invoice.balance),
+        status: invoice.status as 'paid' | 'overdue' | 'sent' | 'draft' | 'outstanding'
+      }))
+    }
+
     const grouped = filtered.reduce((groups: Record<string, CustomerGroup>, invoice) => {
       const patientId = invoice.patientId
       if (!groups[patientId]) {
@@ -311,7 +323,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     })
 
     return Object.values(grouped)
-  }, [invoices, searchTerm, statusFilter])
+  }, [invoices, searchTerm, statusFilter, showAllInvoices])
 
   const dashboardStats = useMemo(() => {
     const totalOutstanding = invoices.reduce((sum, inv) => 
@@ -349,6 +361,17 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
 
   const collapseAllGroups = () => {
     setExpandedGroups(new Set())
+  }
+
+  const toggleShowAllInvoices = () => {
+    setShowAllInvoices(!showAllInvoices)
+    if (!showAllInvoices) {
+      // When showing all invoices, expand all groups
+      expandAllGroups()
+    } else {
+      // When hiding all invoices, collapse all groups
+      collapseAllGroups()
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -439,6 +462,17 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                   <option value="paid">Paid</option>
                   <option value="overdue">Overdue</option>
                 </select>
+                <button
+                  onClick={toggleShowAllInvoices}
+                  className={`flex items-center gap-2 px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                    showAllInvoices 
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800' 
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden xs:inline">{showAllInvoices ? 'Hide All' : 'Show All'}</span>
+                </button>
                 <div className="flex bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode('cards')}

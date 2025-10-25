@@ -5,7 +5,7 @@ import { getCurrency } from '@/lib/system-settings'
 export const dynamic = 'force-dynamic'
 
 // DISABLED: Automatic status update function to prevent manual status override
-export async function updateInvoiceStatus(invoice: any) {
+async function updateInvoiceStatus(invoice: any) {
   // FIXED: Disable automatic status updates to prevent manual status override
   // Manual status changes should be preserved and not overridden
   console.log('⏭️ Status update disabled to preserve manual changes:', invoice.$id, 'status:', invoice.status)

@@ -50,12 +50,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       amount: currentInvoice.amount
     })
 
-    // Update only the status field
+    // Prepare update data
+    const updateData: any = { status: status }
+    
+    // If status is 'paid', set balance to 0
+    if (status === 'paid') {
+      updateData.balance = 0
+      console.log('💰 Setting balance to 0 for paid invoice')
+    }
+    
+    // Update invoice with status and balance changes
     const updatedInvoice = await databases.updateDocument(
       process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.INVOICES,
       id,
-      { status: status }
+      updateData
     )
 
     console.log('✅ Status updated successfully:', {

@@ -51,7 +51,7 @@ interface CustomerGroup {
   invoices: Invoice[]
   totalAmount: number
   totalBalance: number
-  status: 'paid' | 'partial' | 'outstanding' | 'overdue'
+  status: 'paid' | 'partial' | 'outstanding' | 'overdue' | 'sent' | 'draft'
 }
 
 interface BillingPageProps {
@@ -382,7 +382,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
       }
       
       console.log('📊 Customer group status:', {
-        customerName: group.customerName,
+        customerName: `${group.patient.firstName} ${group.patient.lastName}`,
         invoiceCount: group.invoices.length,
         status: group.status,
         invoices: group.invoices.map(inv => ({
