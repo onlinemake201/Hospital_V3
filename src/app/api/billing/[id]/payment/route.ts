@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     // Check if Appwrite is configured
-    if (!process.env.APPWRITE_PROJECT_ID) {
+    if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
       return NextResponse.json({ error: 'Appwrite not configured' }, { status: 503 })
     }
 
@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     // Get the invoice to check balance
     const invoice = await databases.getDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.INVOICES,
       id
     )
@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     // Create payment record
     const payment = await databases.createDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.PAYMENTS,
       'unique()', // Auto-generate ID
       {
@@ -54,8 +54,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const newBalance = invoice.balance - amount
     const newStatus = newBalance <= 0 ? 'paid' : (newBalance < invoice.amount ? 'partial' : invoice.status)
 
+    console.log('💰 Payment processed:', {
+      invoiceId: id,
+      paymentAmount: amount,
+      oldBalance: invoice.balance,
+      newBalance: newBalance,
+      oldStatus: invoice.status,
+      newStatus: newStatus
+    })
+
     await databases.updateDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.INVOICES,
       id,
       {

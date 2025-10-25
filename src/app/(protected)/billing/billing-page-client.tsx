@@ -17,7 +17,8 @@ import {
   Clock,
   CreditCard,
   Eye,
-  Trash2
+  Trash2,
+  RefreshCw
 } from 'lucide-react'
 
 interface Invoice {
@@ -75,6 +76,12 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     getCurrency().then(setCurrency)
   }, [])
 
+  // Add manual refresh function
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh triggered')
+    fetchInvoices(true)
+  }
+
   // Removed auto-refresh to prevent duplicate data
   // useEffect(() => {
   //   const interval = setInterval(() => {
@@ -90,6 +97,8 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     }
     
     try {
+      console.log('🔄 Fetching invoices from API...')
+      
       const response = await fetch('/api/billing', {
         headers: {
           'Cache-Control': 'no-cache',
@@ -100,13 +109,15 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
       if (!response.ok) throw new Error('Failed to fetch invoices')
       const data = await response.json()
       
-      console.log('Fetched invoices from API:', data.invoices)
+      console.log('📊 Fetched invoices from API:', data.invoices)
       
       // Use invoices as they come from the API
       // Status logic should be handled on the backend
       setInvoices(data.invoices || [])
+      
+      console.log('✅ Invoices state updated')
     } catch (error) {
-      console.error('Error fetching invoices:', error)
+      console.error('❌ Error fetching invoices:', error)
       // Set empty array on error to prevent crashes
       setInvoices([])
     } finally {
@@ -326,6 +337,14 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
             <p className="text-slate-600 dark:text-slate-400 mt-1 sm:mt-2 text-sm sm:text-base">Manage invoices and payments</p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 sm:px-6 py-2 sm:py-3 font-medium text-center min-h-[44px] flex items-center justify-center gap-2 hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
             <Link 
               href="/billing/new"
               className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-3 font-medium text-center min-h-[44px] flex items-center justify-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"

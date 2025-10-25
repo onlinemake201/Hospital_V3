@@ -27,18 +27,35 @@ async function updateInvoiceStatus(invoice: any) {
     newStatus = 'pending'
   }
   
+  console.log('🔄 Status update check:', {
+    invoiceId: invoice.$id,
+    currentStatus: invoice.status,
+    newStatus: newStatus,
+    balance: balance,
+    amount: amount,
+    dueDate: dueDate.toISOString(),
+    today: today.toISOString(),
+    isOverdue: today > dueDate
+  })
+  
   // Status nur aktualisieren wenn sich etwas geändert hat
   if (newStatus !== invoice.status) {
     try {
+      console.log('📝 Updating invoice status:', invoice.$id, 'from', invoice.status, 'to', newStatus)
+      
       await databases.updateDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.INVOICES,
         invoice.$id,
         { status: newStatus }
       )
+      
+      console.log('✅ Status updated successfully')
     } catch (error) {
-      console.error('Error updating invoice status:', error)
+      console.error('❌ Error updating invoice status:', error)
     }
+  } else {
+    console.log('⏭️ Status unchanged, skipping update')
   }
   
   return newStatus
