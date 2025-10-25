@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/a11y'
-import { getCurrency } from '@/lib/system-settings'
 import { useToast } from '@/components/modern-toast'
 import { 
   DollarSign, 
@@ -120,7 +119,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }
   }, [showToast])
 
-  // Auto-refresh with smart timing - FIXED DEPENDENCIES
+  // Auto-refresh with smart timing
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
@@ -131,9 +130,9 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       }
     }, 30000) // 30 seconds
     return () => clearInterval(interval)
-  }, [isChangingStatus]) // Only depend on isChangingStatus, not fetchInvoices
+  }, [isChangingStatus, fetchInvoices])
 
-  // Focus-based refresh - FIXED DEPENDENCIES
+  // Focus-based refresh
   useEffect(() => {
     const handleFocus = () => {
       console.log('🔄 Window focused, refreshing invoices...')
@@ -141,16 +140,16 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, []) // Empty dependency array to prevent re-registration
+  }, [fetchInvoices])
 
-  // Initial load - FIXED DEPENDENCIES
+  // Initial load
   useEffect(() => {
     fetchInvoices(true)
-  }, []) // Empty dependency array to run only once
+  }, [fetchInvoices])
 
   const changeInvoiceStatus = useCallback(async (invoiceId: string, newStatus: string) => {
     console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
-    setIsChangingStatus(true) // Set flag to prevent auto-refresh
+    setIsChangingStatus(true)
     
     try {
       console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
@@ -198,10 +197,8 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
               : inv
           )
         )
-        // Don't refresh from server immediately to prevent status revert
-        console.log('✅ Status updated locally, skipping server refresh to prevent revert')
         
-        // Also refresh from server after a short delay to ensure DB is updated
+        // Also refresh from server after a short delay
         console.log('🔄 Scheduling server refresh in 2 seconds...')
         setTimeout(async () => {
           console.log('🔄 Refreshing from server after status change')
@@ -242,7 +239,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       }
     } finally {
       console.log('🔄 Resetting isChangingStatus flag')
-      // Reset the flag after a short delay to allow server refresh
+      // Reset the flag after a short delay
       console.log('🔄 Resetting isChangingStatus flag in 3 seconds')
       setTimeout(() => {
         console.log('✅ Resetting isChangingStatus flag')
