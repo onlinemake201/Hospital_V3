@@ -225,7 +225,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }
   }, [showToast])
 
-  // Group invoices by customer
+  // Group invoices by customer with CORRECT status logic
   const customerGroups = useMemo(() => {
     const grouped = invoices.reduce((groups: Record<string, CustomerGroup>, invoice) => {
       const patientId = invoice.patientId || invoice.patient?.id || 'unknown'
@@ -247,7 +247,15 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       
       groups[patientId].invoices.push(invoice)
       groups[patientId].totalAmount += Number(invoice.amount)
-      groups[patientId].totalBalance += Number(invoice.balance)
+      
+      // FIXED: Calculate balance based on STATUS, not just balance field
+      if (invoice.status === 'paid') {
+        // If status is paid, balance should be 0 regardless of balance field
+        groups[patientId].totalBalance += 0
+      } else {
+        // For non-paid invoices, use the actual balance
+        groups[patientId].totalBalance += Number(invoice.balance)
+      }
       
       return groups
     }, {})
@@ -512,7 +520,10 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {formatCurrency(invoices.reduce((sum, inv) => sum + Number(inv.balance), 0), currency)}
+                {formatCurrency(invoices.reduce((sum, inv) => {
+                  // FIXED: Only count non-paid invoices as outstanding
+                  return inv.status === 'paid' ? sum : sum + Number(inv.balance)
+                }, 0), currency)}
               </p>
             </div>
             <AlertTriangle className="w-8 h-8 text-red-600" />
@@ -524,7 +535,10 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {formatCurrency(invoices.reduce((sum, inv) => sum + (Number(inv.amount) - Number(inv.balance)), 0), currency)}
+                {formatCurrency(invoices.reduce((sum, inv) => {
+                  // FIXED: Count paid invoices by status, not by balance calculation
+                  return inv.status === 'paid' ? sum + Number(inv.amount) : sum
+                }, 0), currency)}
               </p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
