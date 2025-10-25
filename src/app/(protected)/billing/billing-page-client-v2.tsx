@@ -515,17 +515,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                   <option value="paid">Paid</option>
                   <option value="overdue">Overdue</option>
                 </select>
-                <button
-                  onClick={toggleShowAllInvoices}
-                  className={`flex items-center gap-2 px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
-                    showAllInvoices 
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800' 
-                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">{showAllInvoices ? 'Hide All' : 'Show All'}</span>
-                </button>
                 <div className="flex bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode('cards')}
@@ -555,151 +544,212 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
           </div>
         </div>
 
-        {/* Invoice List Display - Like Appointments */}
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-          {/* Table Header */}
-          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-            <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-              <div className="col-span-3">PATIENT</div>
-              <div className="col-span-2">INVOICE</div>
-              <div className="col-span-2">DATE</div>
-              <div className="col-span-1">AMOUNT</div>
-              <div className="col-span-1">BALANCE</div>
-              <div className="col-span-2">STATUS</div>
-              <div className="col-span-1">ACTION</div>
-            </div>
-          </div>
-
-          {/* Invoice Groups */}
-          {customerGroups.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No invoices found</h3>
-              <p className="text-slate-600 dark:text-slate-400">Try adjusting your search or filter criteria</p>
-            </div>
-          ) : (
-            customerGroups.map((group) => (
-              <div key={group.patient.id} className="border-b border-slate-100 dark:border-slate-700 last:border-b-0">
-                {/* Patient Group Header */}
-                <div 
-                  className="px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                  onClick={() => toggleGroupExpansion(group.patient.id)}
-                >
+        {/* Invoice Display - Cards or List */}
+        {viewMode === 'cards' ? (
+          /* Card Grid View */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {customerGroups.map((group) => (
+              <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-200">
+                {/* Patient Header */}
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                      <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                        {group.patient.firstName} {group.patient.lastName}
+                      </h3>
+                      <p className="text-sm text-blue-600 dark:text-blue-400 font-mono">
+                        {group.patient.patientNo}
+                      </p>
+                    </div>
+                  </div>
+                  
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {expandedGroups.has(group.patient.id) ? (
-                        <ChevronDown className="w-4 h-4 text-slate-400" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-slate-400" />
-                      )}
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                          <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-slate-900 dark:text-slate-100">
-                            {group.patient.firstName} {group.patient.lastName}
-                          </div>
-                          <div className="text-sm text-slate-500 dark:text-slate-400">
-                            {group.patient.patientNo} • {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                      {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
                     </div>
-                    
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {formatCurrency(group.totalAmount, currency)}
-                        </div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">
-                          Outstanding: {formatCurrency(group.totalBalance, currency)}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(group.status)}
-                      </div>
-                    </div>
+                    {getStatusBadge(group.status)}
                   </div>
                 </div>
 
-                {/* Individual Invoices */}
-                {expandedGroups.has(group.patient.id) && (
-                  <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-                    {group.invoices.map((invoice, index) => (
-                      <div key={invoice.$id} className={`px-4 py-3 ${index !== group.invoices.length - 1 ? 'border-b border-slate-200 dark:border-slate-700' : ''}`}>
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                          {/* Patient */}
-                          <div className="col-span-3 flex items-center gap-3">
-                            <div className="w-6 h-6 bg-slate-200 dark:bg-slate-600 rounded-full flex items-center justify-center">
-                              <Receipt className="w-3 h-3 text-slate-600 dark:text-slate-400" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                {index === 0 ? `${group.patient.firstName} ${group.patient.lastName}` : 'Additional invoice'}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {group.patient.patientNo}
-                              </div>
-                            </div>
-                          </div>
+                {/* Invoice Summary */}
+                <div className="p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-400">Total Amount:</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100">
+                      {formatCurrency(group.totalAmount, currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-400">Outstanding:</span>
+                    <span className={`font-medium ${Number(group.totalBalance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {formatCurrency(group.totalBalance, currency)}
+                    </span>
+                  </div>
+                </div>
 
-                          {/* Invoice */}
-                          <div className="col-span-2">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                              {invoice.invoiceNo}
+                {/* Action Button */}
+                <div className="p-4 pt-0">
+                  <Link
+                    href={`/billing/${group.invoices[0]?.$id}`}
+                    className="w-full bg-blue-600 text-white text-center py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Invoices
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* List View */
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+            {/* Table Header */}
+            <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+              <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                <div className="col-span-3">PATIENT</div>
+                <div className="col-span-2">INVOICE</div>
+                <div className="col-span-2">DATE</div>
+                <div className="col-span-1">AMOUNT</div>
+                <div className="col-span-1">BALANCE</div>
+                <div className="col-span-2">STATUS</div>
+                <div className="col-span-1">ACTION</div>
+              </div>
+            </div>
+
+            {/* Invoice Groups */}
+            {customerGroups.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">No invoices found</h3>
+                <p className="text-slate-600 dark:text-slate-400">Try adjusting your search or filter criteria</p>
+              </div>
+            ) : (
+              customerGroups.map((group) => (
+                <div key={group.patient.id} className="border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+                  {/* Patient Group Header */}
+                  <div 
+                    className="px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                    onClick={() => toggleGroupExpansion(group.patient.id)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {expandedGroups.has(group.patient.id) ? (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        )}
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                              {group.patient.firstName} {group.patient.lastName}
                             </div>
-                          </div>
-
-                          {/* Date */}
-                          <div className="col-span-2">
-                            <div className="text-sm text-slate-900 dark:text-slate-100">
-                              {new Date(invoice.issueDate).toLocaleDateString('en-US', { 
-                                weekday: 'short', 
-                                month: 'short', 
-                                day: 'numeric' 
-                              })}
+                            <div className="text-sm text-slate-500 dark:text-slate-400">
+                              {group.patient.patientNo} • {group.invoices.length} invoice{group.invoices.length !== 1 ? 's' : ''}
                             </div>
-                          </div>
-
-                          {/* Amount */}
-                          <div className="col-span-1">
-                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                              {formatCurrency(invoice.amount, currency)}
-                            </div>
-                          </div>
-
-                          {/* Balance */}
-                          <div className="col-span-1">
-                            <div className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                              {formatCurrency(invoice.balance, currency)}
-                            </div>
-                          </div>
-
-                          {/* Status */}
-                          <div className="col-span-2">
-                            {getStatusBadge(invoice.status)}
-                          </div>
-
-                          {/* Action */}
-                          <div className="col-span-1">
-                            <Link
-                              href={`/billing/${invoice.$id}`}
-                              className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors"
-                            >
-                              <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            </Link>
                           </div>
                         </div>
                       </div>
-                    ))}
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                            {formatCurrency(group.totalAmount, currency)}
+                          </div>
+                          <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Outstanding: {formatCurrency(group.totalBalance, currency)}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(group.status)}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+
+                  {/* Individual Invoices */}
+                  {expandedGroups.has(group.patient.id) && (
+                    <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                      {group.invoices.map((invoice, index) => (
+                        <div key={invoice.$id} className={`px-4 py-3 ${index !== group.invoices.length - 1 ? 'border-b border-slate-200 dark:border-slate-700' : ''}`}>
+                          <div className="grid grid-cols-12 gap-4 items-center">
+                            {/* Patient */}
+                            <div className="col-span-3 flex items-center gap-3">
+                              <div className="w-6 h-6 bg-slate-200 dark:bg-slate-600 rounded-full flex items-center justify-center">
+                                <Receipt className="w-3 h-3 text-slate-600 dark:text-slate-400" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                  {index === 0 ? `${group.patient.firstName} ${group.patient.lastName}` : 'Additional invoice'}
+                                </div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                  {group.patient.patientNo}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Invoice */}
+                            <div className="col-span-2">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {invoice.invoiceNo}
+                              </div>
+                            </div>
+
+                            {/* Date */}
+                            <div className="col-span-2">
+                              <div className="text-sm text-slate-900 dark:text-slate-100">
+                                {new Date(invoice.issueDate).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Amount */}
+                            <div className="col-span-1">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {formatCurrency(invoice.amount, currency)}
+                              </div>
+                            </div>
+
+                            {/* Balance */}
+                            <div className="col-span-1">
+                              <div className={`text-sm font-medium ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {formatCurrency(invoice.balance, currency)}
+                              </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="col-span-2">
+                              {getStatusBadge(invoice.status)}
+                            </div>
+
+                            {/* Action */}
+                            <div className="col-span-1">
+                              <Link
+                                href={`/billing/${invoice.$id}`}
+                                className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center hover:bg-blue-200 dark:hover:bg-blue-900/30 transition-colors"
+                              >
+                                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
