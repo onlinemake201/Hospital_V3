@@ -353,6 +353,8 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     Object.values(grouped).forEach(group => {
       const hasOverdue = group.invoices.some(inv => inv.status === 'overdue')
       const allPaid = group.invoices.every(inv => inv.status === 'paid')
+      const allSent = group.invoices.every(inv => inv.status === 'sent')
+      const allDraft = group.invoices.every(inv => inv.status === 'draft')
       const hasSent = group.invoices.some(inv => inv.status === 'sent')
       const hasDraft = group.invoices.some(inv => inv.status === 'draft')
       
@@ -360,10 +362,14 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         group.status = 'overdue'
       } else if (allPaid) {
         group.status = 'paid'
+      } else if (allSent) {
+        group.status = 'sent'
+      } else if (allDraft) {
+        group.status = 'draft'
       } else if (hasSent) {
-        group.status = 'outstanding'
+        group.status = 'sent'
       } else if (hasDraft) {
-        group.status = 'outstanding'
+        group.status = 'draft'
       } else {
         group.status = 'outstanding'
       }
@@ -674,13 +680,15 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                         <div>
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                             group.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                            group.status === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                             group.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            group.status === 'sent' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                            group.status === 'draft' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
                             'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                           }`}>
                             {group.status === 'paid' ? 'Fully Paid' :
-                             group.status === 'partial' ? 'Partially Paid' :
                              group.status === 'overdue' ? 'Overdue' :
+                             group.status === 'sent' ? 'Sent' :
+                             group.status === 'draft' ? 'Draft' :
                              'Outstanding'}
                           </span>
                         </div>
