@@ -122,39 +122,51 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
 
   // Change invoice status function
   const changeInvoiceStatus = async (invoiceId: string, newStatus: string) => {
+    console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
+    
     try {
       console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
       
       // Show confirmation for critical status changes
       if (newStatus === 'paid' || newStatus === 'overdue') {
+        console.log('⚠️ Critical status change, showing confirmation')
         const confirmed = confirm(`Are you sure you want to change the status to "${newStatus}"?`)
+        console.log('Confirmation result:', confirmed)
         if (!confirmed) {
+          console.log('❌ User cancelled, resetting select')
           // Reset the select to original value
           const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
           if (selectElement) {
             const invoice = invoices.find(inv => inv.$id === invoiceId)
             if (invoice) {
               selectElement.value = invoice.status
+              console.log('✅ Select reset to:', invoice.status)
             }
           }
           return
         }
       }
       
+      console.log('🌐 Making API request to:', `/api/billing/${invoiceId}/status`)
       const response = await fetch(`/api/billing/${invoiceId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
       
+      console.log('📡 API response status:', response.status)
+      console.log('📡 API response ok:', response.ok)
+      
       if (response.ok) {
         const result = await response.json()
         console.log('✅ Status changed successfully:', result)
         
         // Show success message
+        console.log('🎉 Showing success toast for:', newStatus)
         showToast(`Status changed to ${newStatus}`, 'success')
         
         // Update the invoice status in the local state immediately
+        console.log('🔄 Updating local state for invoice:', invoiceId)
         setInvoices(prevInvoices => 
           prevInvoices.map(inv => 
             inv.$id === invoiceId 
@@ -164,31 +176,38 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
         )
         
         // Also refresh from server to ensure consistency
+        console.log('🔄 Refreshing from server...')
         await fetchInvoices()
       } else {
         const error = await response.json()
         console.error('❌ Status change failed:', error)
+        console.log('🚨 Showing error toast for:', error.error)
         showToast(`Failed to change status: ${error.error}`, 'error')
         
         // Reset the select to original value on error
+        console.log('🔄 Resetting select on error for invoice:', invoiceId)
         const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
         if (selectElement) {
           const invoice = invoices.find(inv => inv.$id === invoiceId)
           if (invoice) {
             selectElement.value = invoice.status
+            console.log('✅ Select reset to original value:', invoice.status)
           }
         }
       }
     } catch (error) {
       console.error('❌ Error changing invoice status:', error)
+      console.log('🚨 Showing catch error toast')
       showToast('Failed to change status', 'error')
       
       // Reset the select to original value on error
+      console.log('🔄 Resetting select on catch error for invoice:', invoiceId)
       const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
       if (selectElement) {
         const invoice = invoices.find(inv => inv.$id === invoiceId)
         if (invoice) {
           selectElement.value = invoice.status
+          console.log('✅ Select reset to original value:', invoice.status)
         }
       }
     }
@@ -232,37 +251,46 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
 
   // Delete invoice function
   const deleteInvoice = async (invoiceId: string) => {
+    console.log('🗑️ deleteInvoice called for:', invoiceId)
     const invoice = invoices.find(inv => inv.$id === invoiceId)
-    if (!invoice) return
+    if (!invoice) {
+      console.log('❌ Invoice not found:', invoiceId)
+      return
+    }
 
-    const confirmed = await showConfirm(
-      'Delete Invoice',
-      `Are you sure you want to delete invoice ${invoice.invoiceNo}? This action cannot be undone.`,
-      async () => {
-        try {
-          const response = await fetch(`/api/billing/${invoiceId}`, {
-            method: 'DELETE'
-          })
+    console.log('⚠️ Showing delete confirmation for:', invoice.invoiceNo)
+    const confirmed = confirm(`Are you sure you want to delete invoice ${invoice.invoiceNo}? This action cannot be undone.`)
+    console.log('Confirmation result:', confirmed)
+    
+    if (!confirmed) {
+      console.log('❌ User cancelled delete')
+      return
+    }
 
-          if (response.ok) {
-            showToast('Invoice deleted successfully', 'success')
-            // Refresh the invoices list
-            fetchInvoices()
-          } else {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Delete failed')
-          }
-        } catch (error) {
-          console.error('Delete error:', error)
-          showToast(`Failed to delete invoice: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
-        }
-      },
-      {
-        type: 'danger',
-        confirmText: 'Delete',
-        cancelText: 'Cancel'
+    try {
+      console.log('🌐 Making DELETE request to:', `/api/billing/${invoiceId}`)
+      const response = await fetch(`/api/billing/${invoiceId}`, {
+        method: 'DELETE'
+      })
+
+      console.log('📡 Delete response status:', response.status)
+      console.log('📡 Delete response ok:', response.ok)
+
+      if (response.ok) {
+        console.log('✅ Invoice deleted successfully')
+        showToast('Invoice deleted successfully', 'success')
+        // Refresh the invoices list
+        console.log('🔄 Refreshing invoices after delete')
+        fetchInvoices()
+      } else {
+        const errorData = await response.json()
+        console.error('❌ Delete failed:', errorData)
+        throw new Error(errorData.error || 'Delete failed')
       }
-    )
+    } catch (error) {
+      console.error('❌ Delete error:', error)
+      showToast(`Failed to delete invoice: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
+    }
   }
 
   // Gruppierung nach Kunden mit automatischer Statusaktualisierung
@@ -679,7 +707,10 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                               <td className="py-3 px-4">
                                 <select
                                   value={invoice.status}
-                                  onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
+                                  onChange={(e) => {
+                                    console.log('🎯 Select onChange triggered for invoice:', invoice.$id, 'new value:', e.target.value)
+                                    changeInvoiceStatus(invoice.$id, e.target.value)
+                                  }}
                                   data-invoice-id={invoice.$id}
                                   className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer transition-all duration-200 hover:shadow-md ${
                                     invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800' :
@@ -707,7 +738,10 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                                     <span className="relative z-10">View</span>
                                   </Link>
                                   <button 
-                                    onClick={() => deleteInvoice(invoice.$id)}
+                                    onClick={() => {
+                                      console.log('🗑️ Delete button clicked for invoice:', invoice.$id)
+                                      deleteInvoice(invoice.$id)
+                                    }}
                                     className="group relative rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1.5 text-xs font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center gap-1 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
                                   >
                                     <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-red-400 to-red-500 opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
