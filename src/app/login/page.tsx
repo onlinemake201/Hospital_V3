@@ -12,8 +12,8 @@ export default function LoginPage() {
     // IMMEDIATE CLEANUP: Always clear any existing session data
     performImmediateCleanup()
     
-    // Check if user is already logged in and redirect
-    checkExistingSession()
+    // DON'T check existing session - let middleware handle redirects
+    // checkExistingSession()
     
     console.log('🚀 ===== MODERN LOGIN PAGE READY =====')
   }, [])

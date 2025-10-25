@@ -43,18 +43,39 @@ export async function middleware(request: NextRequest) {
   const sessionClearedCookie = request.cookies.get('session_cleared')
   
   if (logoutCookie || sessionClearedCookie) {
-    console.log('🚪 IMMEDIATE LOGOUT DETECTED - Instant redirect to login')
+    console.log('🚪 IMMEDIATE LOGOUT DETECTED - Clearing cookies and redirecting to homepage')
     
-    // IMMEDIATE REDIRECT - No complex cleanup, just redirect to homepage
+    // IMMEDIATE REDIRECT - Clear cookies and redirect to homepage
     const response = NextResponse.redirect(new URL('/', request.url))
     
-    // Quick cookie clearing
-    response.headers.append('Set-Cookie', `a_session_${projectId}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `a_session_${projectId}_legacy=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `a_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
-    response.headers.append('Set-Cookie', `logout=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    // Clear ALL session cookies with multiple strategies
+    const cookieStrategies = [
+      // Strategy 1: Basic cookies
+      `a_session_${projectId}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+      `a_session_${projectId}_legacy=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+      `a_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+      
+      // Strategy 2: Expires in past
+      `a_session_${projectId}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`,
+      `a_session_${projectId}_legacy=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`,
+      `a_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`,
+      
+      // Strategy 3: Secure variants
+      `a_session_${projectId}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
+      `a_session_${projectId}_legacy=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
+      `a_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure`,
+    ];
     
-    console.log('✅ IMMEDIATE LOGOUT COMPLETED')
+    // Apply all cookie clearing strategies
+    cookieStrategies.forEach(cookie => {
+      response.headers.append('Set-Cookie', cookie);
+    });
+    
+    // Clear trigger cookies
+    response.headers.append('Set-Cookie', `logout=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    response.headers.append('Set-Cookie', `session_cleared=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+    
+    console.log('✅ IMMEDIATE LOGOUT COMPLETED - All cookies cleared')
     return response
   }
   
@@ -83,11 +104,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   
-  // If user tries to access login page while authenticated, redirect to dashboard
-  if (pathname === '/login' && sessionCookie) {
-    console.log('🔄 Redirecting authenticated user from login to dashboard');
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // Allow access to login page even if authenticated (user can logout)
+  // if (pathname === '/login' && sessionCookie) {
+  //   console.log('🔄 Redirecting authenticated user from login to dashboard');
+  //   return NextResponse.redirect(new URL('/dashboard', request.url))
+  // }
 
   return NextResponse.next()
 }
