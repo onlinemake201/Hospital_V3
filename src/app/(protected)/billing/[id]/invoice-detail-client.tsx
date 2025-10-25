@@ -32,6 +32,7 @@ interface Invoice {
   status: string
   currency: string
   items: string | any[]
+  notes?: string
   patient: {
     id: string
     firstName: string
@@ -359,6 +360,16 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                 </div>
               </div>
             </div>
+
+            {/* Invoice Notes */}
+            {invoice.notes && (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg p-6">
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4">Notes</h3>
+                <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4">
+                  <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{invoice.notes}</p>
+                </div>
+              </div>
+            )}
 
             {/* Invoice Items */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg p-6">

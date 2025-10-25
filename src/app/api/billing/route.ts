@@ -229,6 +229,7 @@ export async function POST(request: Request) {
       balance: data.total,
       currency: await getCurrency(),
       status: data.status
+      // notes: data.notes || '' // Temporarily disabled - field needs to be added to Appwrite collection
     }
 
     const invoice = await databases.createDocument(
