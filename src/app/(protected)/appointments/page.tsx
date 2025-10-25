@@ -517,17 +517,30 @@ export default function AppointmentsPage() {
                       onMouseMove={handleMouseMove}
                     >
                       <div className="p-2 h-full flex flex-col justify-between overflow-hidden relative">
-                        {/* Edit Button - Top Right */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/appointments/${appointment.id}/edit`)
-                          }}
-                          className="absolute top-2 right-2 text-blue-600 hover:text-blue-800 transition-colors z-10"
-                          title="Edit Appointment"
-                        >
-                          <Eye className="w-3 h-3" />
-                        </button>
+                        {/* Action Buttons - Top Right */}
+                        <div className="absolute top-2 right-2 flex gap-1 z-10">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/appointments/${appointment.id}`)
+                            }}
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            title="View Appointment"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAppointmentToDelete(appointment)
+                              setShowDeleteModal(true)
+                            }}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                            title="Delete Appointment"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                         
                         {/* Top Section */}
                         <div className="flex flex-col pr-6">
@@ -1070,16 +1083,29 @@ export default function AppointmentsPage() {
 
                             {/* Action */}
                             <div className="col-span-1 text-center">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  router.push(`/appointments/${appointment.id}/edit`)
-                                }}
-                                className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/appointments/${appointment.id}`)
+                                  }}
+                                  className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+                                  title="View Details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setAppointmentToDelete(appointment)
+                                    setShowDeleteModal(true)
+                                  }}
+                                  className="inline-flex items-center justify-center w-8 h-8 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+                                  title="Delete Appointment"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1101,9 +1127,13 @@ export default function AppointmentsPage() {
 
     setIsDeleting(true)
     try {
+      console.log('🗑️ Deleting appointment:', appointmentToDelete.id)
+      
       const response = await fetch(`/api/appointments/${appointmentToDelete.id}`, {
         method: 'DELETE'
       })
+
+      console.log('🗑️ Delete response:', response.status, response.ok)
 
       if (response.ok) {
         setAppointments(prev => {
@@ -1116,13 +1146,20 @@ export default function AppointmentsPage() {
         })
         setShowDeleteModal(false)
         setAppointmentToDelete(null)
-        showToast('Appointment deleted successfully', 'success')
+        
+        // Use alert instead of toast for better reliability
+        alert('Appointment deleted successfully')
+        
+        // Refresh appointments to ensure consistency
+        await fetchAppointments()
       } else {
-        showToast('Failed to delete appointment', 'error')
+        const errorData = await response.json()
+        console.error('🗑️ Delete error:', errorData)
+        alert(`Failed to delete appointment: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error deleting appointment:', error)
-      showToast('Failed to delete appointment', 'error')
+      console.error('🗑️ Error deleting appointment:', error)
+      alert('Failed to delete appointment: Network error')
     } finally {
       setIsDeleting(false)
     }

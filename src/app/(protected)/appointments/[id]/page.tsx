@@ -173,10 +173,23 @@ export default function AppointmentDetailPage() {
               Edit Appointment
             </Link>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm('Are you sure you want to delete this appointment?')) {
-                  // Handle delete
-                  console.log('Delete appointment:', appointment.id)
+                  try {
+                    const response = await fetch(`/api/appointments/${appointment.id}`, {
+                      method: 'DELETE'
+                    })
+
+                    if (response.ok) {
+                      alert('Appointment deleted successfully')
+                      router.push('/appointments')
+                    } else {
+                      alert('Failed to delete appointment')
+                    }
+                  } catch (error) {
+                    console.error('Error deleting appointment:', error)
+                    alert('Failed to delete appointment')
+                  }
                 }
               }}
               className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
