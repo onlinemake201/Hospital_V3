@@ -31,19 +31,22 @@ export async function updateInvoiceStatus(invoice: any) {
     newStatus = 'sent' // Frontend expects 'sent' for outstanding invoices
   }
   
-  console.log('🔄 Status update check:', {
-    invoiceId: invoice.$id,
-    invoiceNo: invoice.invoiceNo,
-    currentStatus: invoice.status,
-    newStatus: newStatus,
-    balance: balance,
-    amount: amount,
-    dueDate: dueDate.toISOString(),
-    today: today.toISOString(),
-    isOverdue: today > dueDate,
-    isPaid: balance <= 0,
-    isPartial: balance < amount && balance > 0
-  })
+  // Nur loggen wenn sich der Status ändert
+  if (newStatus !== invoice.status) {
+    console.log('🔄 Status update check:', {
+      invoiceId: invoice.$id,
+      invoiceNo: invoice.invoiceNo,
+      currentStatus: invoice.status,
+      newStatus: newStatus,
+      balance: balance,
+      amount: amount,
+      dueDate: dueDate.toISOString(),
+      today: today.toISOString(),
+      isOverdue: today > dueDate,
+      isPaid: balance <= 0,
+      isPartial: balance < amount && balance > 0
+    })
+  }
   
   // Status nur aktualisieren wenn sich etwas geändert hat
   if (newStatus !== invoice.status) {

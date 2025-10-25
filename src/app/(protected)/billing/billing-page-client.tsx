@@ -87,7 +87,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     return () => window.removeEventListener('focus', handleFocus)
   }, [])
 
-  // Automatic refresh every 5 seconds for real-time updates
+  // Automatic refresh every 15 seconds for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
@@ -96,7 +96,7 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
       } else {
         console.log('⏸️ Auto-refresh skipped - status change in progress')
       }
-    }, 5000) // 5 seconds for better responsiveness
+    }, 15000) // 15 seconds - reduced frequency to prevent excessive API calls
 
     return () => clearInterval(interval)
   }, [isChangingStatus])
