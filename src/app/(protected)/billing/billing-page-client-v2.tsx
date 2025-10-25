@@ -2,29 +2,22 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { formatCurrency } from '@/lib/a11y'
 import { useToast } from '@/components/modern-toast'
 import { 
-  DollarSign, 
   FileText, 
   AlertTriangle, 
   CheckCircle, 
   TrendingUp,
   Search,
-  Filter,
   Grid3X3,
   List,
   ChevronDown,
   ChevronRight,
   Eye,
-  Edit,
-  Trash2,
   Plus,
   RefreshCw,
-  Calendar,
-  User,
-  CreditCard
+  User
 } from 'lucide-react'
 
 interface Invoice {
@@ -78,9 +71,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
   const [isChangingStatus, setIsChangingStatus] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const { showToast } = useToast()
-  const router = useRouter()
 
-  // Optimized fetchInvoices with useCallback
   const fetchInvoices = useCallback(async (isInitialLoad = false) => {
     if (!isInitialLoad) {
       setLoading(true)
@@ -119,77 +110,54 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }
   }, [showToast])
 
-  // Auto-refresh with smart timing
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
-        console.log('🔄 Auto-refresh triggered')
         fetchInvoices()
-      } else {
-        console.log('⏸️ Auto-refresh skipped - status change in progress')
       }
-    }, 30000) // 30 seconds
+    }, 30000)
     return () => clearInterval(interval)
   }, [isChangingStatus, fetchInvoices])
 
-  // Focus-based refresh
   useEffect(() => {
     const handleFocus = () => {
-      console.log('🔄 Window focused, refreshing invoices...')
       fetchInvoices()
     }
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
   }, [fetchInvoices])
 
-  // Initial load
   useEffect(() => {
     fetchInvoices(true)
   }, [fetchInvoices])
 
   const changeInvoiceStatus = useCallback(async (invoiceId: string, newStatus: string) => {
-    console.log('🚀 changeInvoiceStatus called with:', { invoiceId, newStatus })
     setIsChangingStatus(true)
     
     try {
-      console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
-      
       if (newStatus === 'paid' || newStatus === 'overdue') {
-        console.log('⚠️ Critical status change, showing confirmation')
         const confirmed = confirm(`Are you sure you want to change the status to "${newStatus}"?`)
-        console.log('Confirmation result:', confirmed)
         if (!confirmed) {
-          console.log('❌ User cancelled, resetting select')
           const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
           if (selectElement) {
             const invoice = invoices.find(inv => inv.$id === invoiceId)
             if (invoice) {
               selectElement.value = invoice.status
-              console.log('✅ Select reset to:', invoice.status)
             }
           }
           return
         }
       }
       
-      console.log('🌐 Making API request to:', `/api/billing/${invoiceId}/status`)
       const response = await fetch(`/api/billing/${invoiceId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
       
-      console.log('📡 API response status:', response.status)
-      console.log('📡 API response ok:', response.ok)
-      
       if (response.ok) {
-        const result = await response.json()
-        console.log('✅ Status changed successfully:', result)
-        console.log('🎉 Showing success toast for:', newStatus)
         showToast(`Status changed to ${newStatus}`, 'success')
         
-        // Update the invoice status in the local state immediately
-        console.log('🔄 Updating local state for invoice:', invoiceId)
         setInvoices(prevInvoices => 
           prevInvoices.map(inv => 
             inv.$id === invoiceId 
@@ -198,78 +166,40 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
           )
         )
         
-        // Also refresh from server after a short delay
-        console.log('🔄 Scheduling server refresh in 2 seconds...')
         setTimeout(async () => {
-          console.log('🔄 Refreshing from server after status change')
           await fetchInvoices()
         }, 2000)
         
       } else {
         const error = await response.json()
-        console.error('❌ Status change failed:', error)
-        console.log('🚨 Showing error toast for:', error.error)
         showToast(`Failed to change status: ${error.error}`, 'error')
         
-        // Reset the select to original value on error
-        console.log('🔄 Resetting select on error for invoice:', invoiceId)
         const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
         if (selectElement) {
           const invoice = invoices.find(inv => inv.$id === invoiceId)
           if (invoice) {
             selectElement.value = invoice.status
-            console.log('✅ Select reset to original value:', invoice.status)
           }
         }
       }
     } catch (error) {
       console.error('❌ Error changing invoice status:', error)
-      console.log('🚨 Showing catch error toast')
       showToast('Failed to change status', 'error')
       
-      // Reset the select to original value on error
-      console.log('🔄 Resetting select on catch error for invoice:', invoiceId)
       const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
       if (selectElement) {
         const invoice = invoices.find(inv => inv.$id === invoiceId)
         if (invoice) {
           selectElement.value = invoice.status
-          console.log('✅ Select reset to original value:', invoice.status)
         }
       }
     } finally {
-      console.log('🔄 Resetting isChangingStatus flag')
-      // Reset the flag after a short delay
-      console.log('🔄 Resetting isChangingStatus flag in 3 seconds')
       setTimeout(() => {
-        console.log('✅ Resetting isChangingStatus flag')
         setIsChangingStatus(false)
       }, 3000)
     }
   }, [invoices, showToast, fetchInvoices])
 
-  const deleteInvoice = useCallback(async (invoiceId: string) => {
-    if (!confirm('Are you sure you want to delete this invoice?')) return
-    
-    try {
-      const response = await fetch(`/api/billing/${invoiceId}`, {
-        method: 'DELETE'
-      })
-      
-      if (response.ok) {
-        showToast('Invoice deleted successfully', 'success')
-        await fetchInvoices()
-      } else {
-        const error = await response.json()
-        showToast(`Failed to delete invoice: ${error.error}`, 'error')
-      }
-    } catch (error) {
-      console.error('❌ Error deleting invoice:', error)
-      showToast('Failed to delete invoice', 'error')
-    }
-  }, [showToast, fetchInvoices])
-
-  // Group invoices by customer with CORRECT status logic
   const customerGroups = useMemo(() => {
     const grouped = invoices.reduce((groups: Record<string, CustomerGroup>, invoice) => {
       const patientId = invoice.patientId || invoice.patient?.id || 'unknown'
@@ -292,19 +222,15 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
       groups[patientId].invoices.push(invoice)
       groups[patientId].totalAmount += Number(invoice.amount)
       
-      // FIXED: Calculate balance based on STATUS, not just balance field
       if (invoice.status === 'paid') {
-        // If status is paid, balance should be 0 regardless of balance field
         groups[patientId].totalBalance += 0
       } else {
-        // For non-paid invoices, use the actual balance
         groups[patientId].totalBalance += Number(invoice.balance)
       }
       
       return groups
     }, {})
 
-    // Determine group status based on individual invoice statuses
     Object.values(grouped).forEach(group => {
       const hasOverdue = group.invoices.some(inv => inv.status === 'overdue')
       const allPaid = group.invoices.every(inv => inv.status === 'paid')
@@ -327,7 +253,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     return Object.values(grouped)
   }, [invoices])
 
-  // Filter groups based on search and status
   const filteredGroups = useMemo(() => {
     return customerGroups.filter(group => {
       const matchesSearch = searchTerm === '' || 
@@ -386,7 +311,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Billing</h1>
@@ -403,7 +327,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg border border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
@@ -433,7 +356,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Outstanding</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                 {formatCurrency(invoices.reduce((sum, inv) => {
-                  // FIXED: Only count non-paid invoices as outstanding
                   return inv.status === 'paid' ? sum : sum + Number(inv.balance)
                 }, 0), currency)}
               </p>
@@ -448,7 +370,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Paid</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(invoices.reduce((sum, inv) => {
-                  // FIXED: Count paid invoices by status, not by balance calculation
                   return inv.status === 'paid' ? sum + Number(inv.amount) : sum
                 }, 0), currency)}
               </p>
@@ -458,7 +379,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       </div>
 
-      {/* Loading State */}
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
@@ -468,7 +388,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       )}
 
-      {/* Error State */}
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
@@ -479,7 +398,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       )}
 
-      {/* Controls */}
       {!loading && !error && (
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -542,7 +460,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       )}
 
-      {/* Customer Groups */}
       {!loading && !error && filteredGroups.length > 0 && (
         <div className="space-y-4">
           {filteredGroups.map((group) => {
@@ -550,7 +467,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
             
             return (
               <div key={group.patient.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {/* Group Header */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -602,7 +518,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
                   </div>
                 </div>
 
-                {/* Group Invoices */}
                 {isExpanded && (
                   <div className="p-6">
                     {viewMode === 'cards' ? (
@@ -735,7 +650,6 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
         </div>
       )}
 
-      {/* Last Refresh Info */}
       <div className="text-center text-sm text-slate-500 dark:text-slate-400">
         Last updated: {lastRefresh.toLocaleTimeString()}
         {isChangingStatus && (
