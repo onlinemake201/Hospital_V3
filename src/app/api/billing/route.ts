@@ -7,109 +7,12 @@ import { getCurrency } from '@/lib/system-settings'
 // Force dynamic rendering
 import { z } from 'zod'
 
-// Funktion zur automatischen Statusaktualisierung
+// DISABLED: Automatic status update function to prevent manual status override
 export async function updateInvoiceStatus(invoice: any) {
-  const balance = Number(invoice.balance)
-  const amount = Number(invoice.amount)
-  const dueDate = new Date(invoice.dueDate)
-  const today = new Date()
-  
-  // Reset time to start of day for accurate comparison
-  today.setHours(0, 0, 0, 0)
-  dueDate.setHours(0, 0, 0, 0)
-  
-  let newStatus = invoice.status
-  
-  // Prüfen ob Status kürzlich manuell geändert wurde (innerhalb der letzten 5 Minuten)
-  const lastUpdate = new Date(invoice.$updatedAt)
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-  const wasRecentlyUpdated = lastUpdate > fiveMinutesAgo
-  
-  // Wenn Status kürzlich geändert wurde, nur bei kritischen Änderungen aktualisieren
-  if (wasRecentlyUpdated) {
-    console.log('⏰ Invoice recently updated, limiting automatic status changes:', {
-      invoiceId: invoice.$id,
-      lastUpdate: lastUpdate.toISOString(),
-      currentStatus: invoice.status
-    })
-    
-    // Nur kritische Änderungen: Balance = 0 → 'paid'
-    if (balance <= 0 && invoice.status !== 'paid') {
-      newStatus = 'paid'
-    }
-    // Ansonsten Status beibehalten
-  } else {
-    // Normale automatische Statuslogik für ältere Updates
-    if (balance <= 0) {
-      newStatus = 'paid'
-    } else if (balance < amount) {
-      newStatus = 'partial'
-    } else if (today > dueDate) {
-      newStatus = 'overdue'
-    } else {
-      newStatus = 'sent'
-    }
-  }
-  
-  // Nur loggen wenn sich der Status ändert
-  if (newStatus !== invoice.status) {
-    console.log('🔄 Status update check:', {
-      invoiceId: invoice.$id,
-      invoiceNo: invoice.invoiceNo,
-      currentStatus: invoice.status,
-      newStatus: newStatus,
-      balance: balance,
-      amount: amount,
-      dueDate: dueDate.toISOString(),
-      today: today.toISOString(),
-      isOverdue: today > dueDate,
-      isPaid: balance <= 0,
-      isPartial: balance < amount && balance > 0,
-      wasRecentlyUpdated: wasRecentlyUpdated
-    })
-  }
-  
-  // Status nur aktualisieren wenn sich etwas geändert hat
-  if (newStatus !== invoice.status) {
-    try {
-      console.log('📝 Updating invoice status:', invoice.$id, 'from', invoice.status, 'to', newStatus)
-      
-      // Validate that we have all required data
-      if (!invoice.$id) {
-        throw new Error('Invoice ID is missing')
-      }
-      
-      if (!process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID) {
-        throw new Error('Database ID is not configured')
-      }
-      
-      if (!COLLECTIONS.INVOICES) {
-        throw new Error('Invoices collection is not configured')
-      }
-      
-      const updateResult = await databases.updateDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
-        COLLECTIONS.INVOICES,
-        invoice.$id,
-        { status: newStatus }
-      )
-      
-      console.log('✅ Status updated successfully:', updateResult)
-      
-      // Verify the update was successful
-      if (updateResult.status !== newStatus) {
-        console.warn('⚠️ Status update verification failed - expected:', newStatus, 'got:', updateResult.status)
-      }
-      
-    } catch (error) {
-      console.error('❌ Error updating invoice status:', error)
-      throw error // Re-throw to trigger retry mechanism
-    }
-  } else {
-    console.log('⏭️ Status unchanged, skipping update')
-  }
-  
-  return newStatus
+  // FIXED: Disable automatic status updates to prevent manual status override
+  // Manual status changes should be preserved and not overridden
+  console.log('⏭️ Status update disabled to preserve manual changes:', invoice.$id, 'status:', invoice.status)
+  return invoice.status
 }
 
 const createInvoiceSchema = z.object({

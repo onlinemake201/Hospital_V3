@@ -34,19 +34,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
       throw error
     }
 
-    // Update status before returning the invoice
-    try {
-      console.log('🔄 Updating status for invoice detail view:', invoice.$id)
-      const { updateInvoiceStatus } = await import('@/app/api/billing/route')
-      const newStatus = await updateInvoiceStatus(invoice)
-      console.log('✅ Status updated for invoice detail:', newStatus)
-      
-      // Update the invoice object with the new status
-      invoice.status = newStatus
-    } catch (statusError) {
-      console.warn('Could not update status for invoice detail:', statusError)
-      // Continue anyway - return invoice with current status
-    }
+    // DISABLED: Status update to preserve manual changes
+    console.log('⏭️ Status update disabled for invoice detail view:', invoice.$id, 'status:', invoice.status)
 
     // Fetch patient data
     let patient = null
@@ -180,38 +169,12 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     console.log('✅ Invoice updated successfully:', updatedInvoice)
 
-    // Trigger status update after invoice update with retry mechanism
-    let statusUpdateAttempts = 0
-    const maxRetries = 3
-    
-    while (statusUpdateAttempts < maxRetries) {
-      try {
-        console.log(`🔄 Attempting status update (attempt ${statusUpdateAttempts + 1}/${maxRetries})`)
-        
-        // Import and call the status update function
-        const { updateInvoiceStatus } = await import('@/app/api/billing/route')
-        const newStatus = await updateInvoiceStatus(updatedInvoice)
-        
-        console.log('✅ Status updated after invoice edit:', newStatus)
-        break // Success, exit retry loop
-        
-      } catch (statusError) {
-        statusUpdateAttempts++
-        console.warn(`❌ Status update attempt ${statusUpdateAttempts} failed:`, statusError)
-        
-        if (statusUpdateAttempts >= maxRetries) {
-          console.error('❌ All status update attempts failed, but invoice was still updated')
-          // Continue anyway - invoice is still updated
-        } else {
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      }
-    }
+    // DISABLED: Status update to preserve manual changes
+    console.log('⏭️ Status update disabled after invoice edit:', updatedInvoice.$id, 'status:', updatedInvoice.status)
 
     return NextResponse.json({ 
       invoice: updatedInvoice,
-      statusUpdated: statusUpdateAttempts < maxRetries // Indicate if status was successfully updated
+      statusUpdated: false // Status update disabled to preserve manual changes
     })
   } catch (error: any) {
     console.error('Error updating invoice:', error)

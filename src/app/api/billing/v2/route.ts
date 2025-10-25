@@ -4,60 +4,11 @@ import { getCurrency } from '@/lib/system-settings'
 
 export const dynamic = 'force-dynamic'
 
-// Simplified status update function - only for critical business logic
+// DISABLED: Automatic status update function to prevent manual status override
 export async function updateInvoiceStatus(invoice: any) {
-  const balance = Number(invoice.balance)
-  const amount = Number(invoice.amount)
-  const dueDate = new Date(invoice.dueDate)
-  const today = new Date()
-  
-  // Reset time to start of day for accurate comparison
-  today.setHours(0, 0, 0, 0)
-  dueDate.setHours(0, 0, 0, 0)
-  
-  let newStatus = invoice.status
-  
-  // Only apply automatic status changes for critical business logic
-  // Manual status changes are preserved
-  const lastUpdate = new Date(invoice.$updatedAt)
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
-  const wasRecentlyUpdated = lastUpdate > tenMinutesAgo
-  
-  if (!wasRecentlyUpdated) {
-    // Only critical business logic: payment detection
-    if (balance <= 0 && invoice.status !== 'paid') {
-      newStatus = 'paid'
-      console.log('💰 Payment detected, updating to paid:', invoice.$id)
-    }
-    // Overdue detection for non-paid invoices
-    else if (balance > 0 && today > dueDate && invoice.status !== 'overdue') {
-      newStatus = 'overdue'
-      console.log('⚠️ Invoice overdue, updating status:', invoice.$id)
-    }
-  } else {
-    console.log('⏰ Invoice recently updated, preserving manual status:', invoice.$id)
-  }
-  
-  // Only update if status actually changed
-  if (newStatus !== invoice.status) {
-    try {
-      console.log('📝 Updating invoice status:', invoice.$id, 'from', invoice.status, 'to', newStatus)
-      
-      const updatedInvoice = await databases.updateDocument(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
-        COLLECTIONS.INVOICES,
-        invoice.$id,
-        { status: newStatus }
-      )
-      
-      console.log('✅ Status updated successfully:', invoice.$id)
-      return updatedInvoice
-    } catch (error) {
-      console.error('❌ Error updating invoice status:', error)
-      return invoice
-    }
-  }
-  
+  // FIXED: Disable automatic status updates to prevent manual status override
+  // Manual status changes should be preserved and not overridden
+  console.log('⏭️ Status update disabled to preserve manual changes:', invoice.$id, 'status:', invoice.status)
   return invoice
 }
 
