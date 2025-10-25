@@ -2,69 +2,47 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { authHelpers } from '@/lib/appwrite'
 
 interface AuthGuardProps {
   children: React.ReactNode
-  fallback?: React.ReactNode
 }
 
-export default function AuthGuard({ children, fallback }: AuthGuardProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // IMMEDIATE CHECK: Look for logout cookie first
-        if (document.cookie.includes('logout=true')) {
-          console.log('🚪 Logout cookie detected - immediate redirect to homepage')
-          setIsAuthenticated(false)
-          setIsLoading(false)
-          router.push('/')
-          return
-        }
-        
-        const user = await authHelpers.getCurrentUser()
-        setIsAuthenticated(!!user)
-      } catch (error) {
-        console.error('Auth check failed:', error)
-        setIsAuthenticated(false)
-      } finally {
-        setIsLoading(false)
+    // Einfache Session-Prüfung über Cookie
+    const checkAuth = () => {
+      const sessionCookie = document.cookie.includes('appwrite_session=true')
+      
+      if (!sessionCookie) {
+        router.push('/login')
+        return
       }
+      
+      setIsAuthenticated(true)
+      setIsLoading(false)
     }
 
     checkAuth()
-  }, [])
+  }, [router])
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="text-gray-600">Authentifizierung wird überprüft...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Redirect to homepage if not authenticated
-  if (!isAuthenticated) {
-    if (typeof window !== 'undefined') {
-      router.push('/')
-    }
-    return fallback || (
-      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Weiterleitung zur Startseite...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Wird geladen...</p>
         </div>
       </div>
     )
   }
 
-  // Render protected content
+  if (!isAuthenticated) {
+    return null
+  }
+
   return <>{children}</>
 }

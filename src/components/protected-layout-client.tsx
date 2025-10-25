@@ -66,42 +66,24 @@ export default function ProtectedLayoutClient({
   }
 
   const handleLogout = () => {
-    console.log('🚪 IMMEDIATE LOGOUT - Using direct logout endpoint...');
+    console.log('🚪 EINFACHER LOGOUT - Cookie löschen und zur Homepage');
     
-    // IMMEDIATE ACTION: Use direct logout endpoint for guaranteed logout
     try {
-      // Clear all storage immediately
-      localStorage.clear();
-      sessionStorage.clear();
+      // Session-Cookie löschen
+      document.cookie = 'appwrite_session=; path=/; max-age=0'
       
-      // Use direct logout endpoint for guaranteed logout
-      window.location.href = '/api/direct-logout';
+      // Storage löschen
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Zur Homepage weiterleiten
+      window.location.href = '/'
       
     } catch (error) {
-      console.error('❌ Immediate logout error:', error);
-      // Emergency: Force redirect even if clearing fails
-      window.location.href = '/';
+      console.error('❌ Logout error:', error)
+      // Notfall: Zur Homepage weiterleiten
+      window.location.href = '/'
     }
-    
-    // Background cleanup (non-blocking)
-    setTimeout(async () => {
-      try {
-        console.log('🔄 Background cleanup starting...');
-        
-        // Try Appwrite SDK logout in background
-        await authHelpers.logout();
-        
-        // Try server-side logout in background
-        await fetch('/api/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        
-        console.log('✅ Background cleanup completed');
-      } catch (error) {
-        console.log('⚠️ Background cleanup failed:', error);
-      }
-    }, 100);
   }
 
   return (
