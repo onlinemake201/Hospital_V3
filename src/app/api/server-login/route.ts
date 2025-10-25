@@ -15,11 +15,21 @@ export async function POST(request: Request) {
     console.log('⏰ Timestamp:', new Date().toISOString());
 
     // Create session using server-side API key (bypasses rate limits)
-    const response = await fetch(`${process.env.APPWRITE_ENDPOINT}/account/sessions/email`, {
+    const appwriteEndpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || process.env.APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || process.env.APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
+    const apiKey = process.env.APPWRITE_API_KEY || '';
+    
+    console.log('🔧 Server-side configuration:', {
+      endpoint: appwriteEndpoint,
+      projectId: projectId,
+      hasApiKey: !!apiKey
+    });
+    
+    const response = await fetch(`${appwriteEndpoint}/account/sessions/email`, {
       method: 'POST',
       headers: {
-        'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID || '',
-        'X-Appwrite-Key': process.env.APPWRITE_API_KEY || '',
+        'X-Appwrite-Project': projectId,
+        'X-Appwrite-Key': apiKey,
         'Content-Type': 'application/json',
         'User-Agent': 'Server-Side-Bypass/1.0',
         'X-Forwarded-For': '127.0.0.1',
@@ -55,17 +65,28 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString()
       }, { status: 200 });
       
-      // Set cookies manually for localhost
+      // Set cookies manually - dynamic domain for production
       const sessionSecret = sessionData.secret;
-      const projectId = process.env.APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
       
-      // Set both session cookies for localhost with root path
+      // Determine domain based on environment
+      const isProduction = process.env.NODE_ENV === 'production';
+      const domain = isProduction ? undefined : 'localhost'; // undefined = current domain
+      
+      console.log('🍪 Cookie configuration:', {
+        isProduction,
+        domain: domain || 'current domain',
+        projectId
+      });
+      
+      // Set both session cookies with dynamic domain
+      const cookieOptions = `Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${domain ? `; Domain=${domain}` : ''}`;
+      
       nextResponse.headers.append('Set-Cookie', 
-        `a_session_${projectId}=${sessionSecret}; Path=/; Domain=localhost; Max-Age=31536000; HttpOnly; SameSite=Lax`
+        `a_session_${projectId}=${sessionSecret}; ${cookieOptions}`
       );
       
       nextResponse.headers.append('Set-Cookie', 
-        `a_session_${projectId}_legacy=${sessionSecret}; Path=/; Domain=localhost; Max-Age=31536000; HttpOnly; SameSite=Lax`
+        `a_session_${projectId}_legacy=${sessionSecret}; ${cookieOptions}`
       );
       
       return nextResponse;

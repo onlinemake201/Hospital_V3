@@ -18,8 +18,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if user is authenticated by looking for session cookie
-  const sessionCookie = request.cookies.get('a_session_68f4f8c8002cda88c2ef') || 
-                       request.cookies.get('a_session_68f4f8c8002cda88c2ef_legacy') ||
+  const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '68f4f8c8002cda88c2ef';
+  const sessionCookie = request.cookies.get(`a_session_${projectId}`) || 
+                       request.cookies.get(`a_session_${projectId}_legacy`) ||
                        request.cookies.get('a_session')
   
   // If no session cookie and trying to access protected route, redirect to login
