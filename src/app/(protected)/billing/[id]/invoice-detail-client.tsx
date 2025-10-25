@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/a11y'
+import { useToast } from '@/components/modern-toast'
 import { 
   ArrowLeft, 
   Edit, 
@@ -47,10 +48,28 @@ interface InvoiceDetailClientProps {
 
 export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientProps) {
   const router = useRouter()
+  const { showToast, ToastContainer } = useToast()
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('CHF')
+
+  // Load global currency setting
+  useEffect(() => {
+    const loadCurrency = async () => {
+      try {
+        const response = await fetch('/api/admin/settings')
+        if (response.ok) {
+          const data = await response.json()
+          setCurrency(data.settings?.currency || 'CHF')
+        }
+      } catch (error) {
+        console.error('Error loading currency:', error)
+      }
+    }
+    loadCurrency()
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -193,15 +212,15 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         })
 
         if (response.ok) {
-          alert('Invoice deleted successfully')
+          showToast('Invoice deleted successfully', 'success')
           router.push('/billing')
         } else {
           const error = await response.json()
-          alert(error.error || 'Error deleting invoice')
+          showToast(error.error || 'Error deleting invoice', 'error')
         }
       } catch (error) {
         console.error('Error deleting invoice:', error)
-        alert('Error deleting invoice')
+        showToast('Error deleting invoice', 'error')
       } finally {
         setLoading(false)
       }
@@ -221,13 +240,13 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        alert('PDF downloaded successfully')
+        showToast('PDF downloaded successfully', 'success')
       } else {
-        alert('Error generating PDF')
+        showToast('Error generating PDF', 'error')
       }
     } catch (error) {
       console.error('Error downloading PDF:', error)
-      alert('Error downloading PDF')
+      showToast('Error downloading PDF', 'error')
     }
   }
 
@@ -239,6 +258,9 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20'
       case 'overdue':
         return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20'
+      case 'sent':
+      case 'pending':
+        return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20'
       default:
         return 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20'
     }
@@ -252,8 +274,11 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
         return 'Partially Paid'
       case 'overdue':
         return 'Overdue'
+      case 'sent':
+      case 'pending':
+        return 'Outstanding'
       default:
-        return 'Pending'
+        return 'Outstanding'
     }
   }
 
@@ -338,7 +363,7 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                 <div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">Total Amount</p>
                   <p className="font-medium text-slate-900 dark:text-slate-100">
-                    {formatCurrency(invoice.amount, invoice.currency)}
+                    {formatCurrency(invoice.amount, currency)}
                   </p>
                 </div>
               </div>
@@ -417,10 +442,10 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                     <td className="py-3 px-4 text-slate-900 dark:text-slate-100">{item.description}</td>
                     <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-400">{item.quantity}</td>
                     <td className="py-3 px-4 text-right text-slate-600 dark:text-slate-400">
-                      {formatCurrency(item.unitPrice || item.total / item.quantity, invoice.currency)}
+                      {formatCurrency(item.unitPrice || item.total / item.quantity, currency)}
                     </td>
                     <td className="py-3 px-4 text-right font-medium text-slate-900 dark:text-slate-100">
-                      {formatCurrency(item.total, invoice.currency)}
+                      {formatCurrency(item.total, currency)}
                     </td>
                   </tr>
                 ))}
@@ -431,7 +456,7 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                     Total Amount:
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-lg text-slate-900 dark:text-slate-100">
-                    {formatCurrency(invoice.amount, invoice.currency)}
+                    {formatCurrency(invoice.amount, currency)}
                   </td>
                 </tr>
               </tfoot>
@@ -455,7 +480,7 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                     <CreditCard className="w-4 h-4 text-slate-500" />
                     <div>
                       <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {formatCurrency(payment.amount, invoice.currency)}
+                        {formatCurrency(payment.amount, currency)}
                       </p>
                       <p className="text-sm text-slate-500 dark:text-slate-400">
                         {payment.method} • {new Date(payment.date).toLocaleDateString('en-US')}
@@ -472,19 +497,20 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-slate-900 dark:text-slate-100">Total Paid:</span>
                 <span className="font-bold text-lg text-green-600 dark:text-green-400">
-                  {formatCurrency(totalPaid, invoice.currency)}
+                  {formatCurrency(totalPaid, currency)}
                 </span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="font-semibold text-slate-900 dark:text-slate-100">Outstanding Balance:</span>
-                <span className="font-bold text-lg text-red-600 dark:text-red-400">
-                  {formatCurrency(invoice.balance, invoice.currency)}
+                <span className={`font-bold text-lg ${Number(invoice.balance) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                  {formatCurrency(invoice.balance, currency)}
                 </span>
               </div>
             </div>
           </div>
         )}
       </div>
+      <ToastContainer />
     </main>
   )
 }
