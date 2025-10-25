@@ -464,23 +464,12 @@ export default function AppointmentsPage() {
 
                 {/* Appointments */}
                 {organizeAppointmentsHorizontally(dayAppointments).map((appointment) => {
-                  // Parse dates correctly to avoid timezone issues
+                  // Parse UTC dates correctly
                   const startTime = new Date(appointment.startAt)
                   const endTime = new Date(appointment.endAt)
                   
-                  // Debug logging for timezone issues
-                  console.log('🕐 Appointment time debug:', {
-                    id: appointment.id,
-                    rawStartAt: appointment.startAt,
-                    parsedStartTime: startTime.toISOString(),
-                    localStartTime: startTime.toLocaleString(),
-                    startHour: startTime.getHours(),
-                    startMinute: startTime.getMinutes(),
-                    timezoneOffset: startTime.getTimezoneOffset()
-                  })
-                  
-                  const startHour = startTime.getHours()
-                  const startMinute = startTime.getMinutes()
+                  const startHour = startTime.getUTCHours()
+                  const startMinute = startTime.getUTCMinutes()
                   const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60)
                   
                   const topPosition = (startHour - 7) * 80 + (startMinute / 60) * 80
@@ -556,11 +545,13 @@ export default function AppointmentsPage() {
                               {new Date(appointment.startAt).toLocaleTimeString('en-US', { 
                                 hour: '2-digit', 
                                 minute: '2-digit',
-                                hour12: false 
+                                hour12: false,
+                                timeZone: 'UTC'
                               })} – {new Date(appointment.endAt).toLocaleTimeString('en-US', { 
                                 hour: '2-digit', 
                                 minute: '2-digit',
-                                hour12: false 
+                                hour12: false,
+                                timeZone: 'UTC'
                               })}
                             </span>
                           </div>
@@ -1046,12 +1037,23 @@ export default function AppointmentsPage() {
                                 {startTime.toLocaleDateString('en-US', { 
                                   weekday: 'short', 
                                   month: 'short', 
-                                  day: 'numeric' 
+                                  day: 'numeric',
+                                  timeZone: 'UTC'
                                 })}
                               </div>
                               <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {startTime.toLocaleTimeString('en-US', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false,
+                                  timeZone: 'UTC'
+                                })} - {endTime.toLocaleTimeString('en-US', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit',
+                                  hour12: false,
+                                  timeZone: 'UTC'
+                                })}
                               </div>
                             </div>
 
@@ -1333,7 +1335,12 @@ export default function AppointmentsPage() {
             {hoveredAppointment.patient?.firstName} {hoveredAppointment.patient?.lastName}
                 </div>
           <div className="text-xs text-slate-300 mb-1">
-            {new Date(hoveredAppointment.startAt).toLocaleDateString()} at {new Date(hoveredAppointment.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {new Date(hoveredAppointment.startAt).toLocaleDateString('en-US', { timeZone: 'UTC' })} at {new Date(hoveredAppointment.startAt).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false,
+              timeZone: 'UTC'
+            })}
               </div>
           <div className="text-xs text-slate-300">
             Room: {hoveredAppointment.room}

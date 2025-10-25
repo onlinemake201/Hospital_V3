@@ -220,8 +220,9 @@ function NewAppointmentForm() {
     const endTimeFromUrl = searchParams.get('endTime')
 
     if (dateFromUrl && startTimeFromUrl && endTimeFromUrl) {
-      const startDateTime = `${dateFromUrl}T${startTimeFromUrl}`
-      const endDateTime = `${dateFromUrl}T${endTimeFromUrl}`
+      // Convert local time to UTC for storage
+      const startDateTime = new Date(`${dateFromUrl}T${startTimeFromUrl}`).toISOString()
+      const endDateTime = new Date(`${dateFromUrl}T${endTimeFromUrl}`).toISOString()
       
       setFormData(prev => ({
         ...prev,

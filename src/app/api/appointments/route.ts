@@ -17,28 +17,16 @@ const createAppointmentSchema = z.object({
     if (isNaN(date.getTime())) {
       throw new Error('Invalid start date format')
     }
-    // Store as local time to avoid timezone conversion issues
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+    // Always store as UTC to ensure consistency
+    return date.toISOString()
   }),
   endAt: z.string().transform(str => {
     const date = new Date(str)
     if (isNaN(date.getTime())) {
       throw new Error('Invalid end date format')
     }
-    // Store as local time to avoid timezone conversion issues
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+    // Always store as UTC to ensure consistency
+    return date.toISOString()
   }),
   reason: z.string().optional(),
   status: z.enum(['scheduled', 'confirmed', 'in-progress', 'completed', 'cancelled', 'no-show']).default('scheduled')
@@ -56,28 +44,16 @@ const updateAppointmentSchema = z.object({
     if (isNaN(date.getTime())) {
       throw new Error('Invalid start date format')
     }
-    // Store as local time to avoid timezone conversion issues
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+    // Always store as UTC to ensure consistency
+    return date.toISOString()
   }).optional(),
   endAt: z.string().transform(str => {
     const date = new Date(str)
     if (isNaN(date.getTime())) {
       throw new Error('Invalid end date format')
     }
-    // Store as local time to avoid timezone conversion issues
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+    // Always store as UTC to ensure consistency
+    return date.toISOString()
   }).optional(),
   reason: z.string().optional(),
   status: z.enum(['scheduled', 'confirmed', 'in-progress', 'completed', 'cancelled', 'no-show']).optional()
