@@ -120,6 +120,71 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     }
   }
 
+  // Change invoice status function
+  const changeInvoiceStatus = async (invoiceId: string, newStatus: string) => {
+    try {
+      console.log('🔄 Changing invoice status:', { invoiceId, newStatus })
+      
+      // Show confirmation for critical status changes
+      if (newStatus === 'paid' || newStatus === 'overdue') {
+        const confirmed = confirm(`Are you sure you want to change the status to "${newStatus}"?`)
+        if (!confirmed) {
+          // Reset the select to original value
+          const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
+          if (selectElement) {
+            const invoice = invoices.find(inv => inv.$id === invoiceId)
+            if (invoice) {
+              selectElement.value = invoice.status
+            }
+          }
+          return
+        }
+      }
+      
+      const response = await fetch(`/api/billing/${invoiceId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('✅ Status changed successfully:', result)
+        
+        // Show success message
+        showToast(`Status changed to ${newStatus}`, 'success')
+        
+        // Refresh the invoices list to show updated status
+        await fetchInvoices()
+      } else {
+        const error = await response.json()
+        console.error('❌ Status change failed:', error)
+        showToast(`Failed to change status: ${error.error}`, 'error')
+        
+        // Reset the select to original value on error
+        const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
+        if (selectElement) {
+          const invoice = invoices.find(inv => inv.$id === invoiceId)
+          if (invoice) {
+            selectElement.value = invoice.status
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error changing invoice status:', error)
+      showToast('Failed to change status', 'error')
+      
+      // Reset the select to original value on error
+      const selectElement = document.querySelector(`select[data-invoice-id="${invoiceId}"]`) as HTMLSelectElement
+      if (selectElement) {
+        const invoice = invoices.find(inv => inv.$id === invoiceId)
+        if (invoice) {
+          selectElement.value = invoice.status
+        }
+      }
+    }
+  }
+
   const fetchInvoices = async (showLoading = false) => {
     if (showLoading) {
       setLoading(true)
@@ -602,17 +667,24 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                                 </span>
                               </td>
                               <td className="py-3 px-4">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                                  invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                                  invoice.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  invoice.status === 'sent' || invoice.status === 'pending' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                                  'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                                }`}>
-                                  {invoice.status === 'partial' ? 'Partially Paid' :
-                                   invoice.status === 'sent' || invoice.status === 'pending' ? 'Outstanding' :
-                                   invoice.status}
-                                </span>
+                                <select
+                                  value={invoice.status}
+                                  onChange={(e) => changeInvoiceStatus(invoice.$id, e.target.value)}
+                                  data-invoice-id={invoice.$id}
+                                  className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                    invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800' :
+                                    invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-800' :
+                                    invoice.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800' :
+                                    invoice.status === 'sent' || invoice.status === 'pending' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800' :
+                                    'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800'
+                                  }`}
+                                >
+                                  <option value="paid">Paid</option>
+                                  <option value="partial">Partially Paid</option>
+                                  <option value="sent">Outstanding</option>
+                                  <option value="pending">Pending</option>
+                                  <option value="overdue">Overdue</option>
+                                </select>
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-2">
