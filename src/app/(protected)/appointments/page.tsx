@@ -464,8 +464,21 @@ export default function AppointmentsPage() {
 
                 {/* Appointments */}
                 {organizeAppointmentsHorizontally(dayAppointments).map((appointment) => {
+                  // Parse dates correctly to avoid timezone issues
                   const startTime = new Date(appointment.startAt)
                   const endTime = new Date(appointment.endAt)
+                  
+                  // Debug logging for timezone issues
+                  console.log('🕐 Appointment time debug:', {
+                    id: appointment.id,
+                    rawStartAt: appointment.startAt,
+                    parsedStartTime: startTime.toISOString(),
+                    localStartTime: startTime.toLocaleString(),
+                    startHour: startTime.getHours(),
+                    startMinute: startTime.getMinutes(),
+                    timezoneOffset: startTime.getTimezoneOffset()
+                  })
+                  
                   const startHour = startTime.getHours()
                   const startMinute = startTime.getMinutes()
                   const durationMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60)

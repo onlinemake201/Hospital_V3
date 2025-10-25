@@ -10,8 +10,34 @@ const updateAppointmentSchema = z.object({
   patientId: z.string().optional(),
   providerId: z.string().optional(),
   room: z.string().optional(),
-  startAt: z.string().optional(),
-  endAt: z.string().optional(),
+  startAt: z.string().transform(str => {
+    const date = new Date(str)
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid start date format')
+    }
+    // Store as local time to avoid timezone conversion issues
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+  }).optional(),
+  endAt: z.string().transform(str => {
+    const date = new Date(str)
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid end date format')
+    }
+    // Store as local time to avoid timezone conversion issues
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+  }).optional(),
   reason: z.string().optional(),
   status: z.string().optional(),
 })
@@ -27,12 +53,12 @@ export async function GET(
     // }
 
     // Check if Appwrite is configured
-    if (!process.env.APPWRITE_PROJECT_ID) {
+    if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
       return NextResponse.json({ error: 'Appwrite not configured' }, { status: 503 })
     }
 
     const appointment = await databases.getDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.APPOINTMENTS,
       params.id
     )
@@ -40,12 +66,12 @@ export async function GET(
     // Get patient and provider details in parallel for better performance
     const [patient, provider] = await Promise.allSettled([
       appointment.patientId ? databases.getDocument(
-        process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.PATIENTS,
         appointment.patientId
       ) : Promise.resolve(null),
       appointment.providerId ? databases.getDocument(
-        process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.USERS,
         appointment.providerId
       ) : Promise.resolve(null)
@@ -115,7 +141,7 @@ export async function PUT(
     console.log('Parsed appointment update data:', data)
     
     // Check if Appwrite is configured
-    if (!process.env.APPWRITE_PROJECT_ID) {
+    if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
       return NextResponse.json({ error: 'Appwrite not configured' }, { status: 503 })
     }
     
@@ -131,7 +157,7 @@ export async function PUT(
     if (data.patientId) {
       try {
         const patient = await databases.getDocument(
-          process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
           COLLECTIONS.PATIENTS,
           data.patientId
         )
@@ -150,7 +176,7 @@ export async function PUT(
     console.log('Updating appointment with data:', appointmentData)
     
     const appointment = await databases.updateDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.APPOINTMENTS,
       params.id,
       appointmentData
@@ -159,12 +185,12 @@ export async function PUT(
     // Get patient and provider details in parallel for better performance
     const [patient, provider] = await Promise.allSettled([
       appointment.patientId ? databases.getDocument(
-        process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.PATIENTS,
         appointment.patientId
       ) : Promise.resolve(null),
       appointment.providerId ? databases.getDocument(
-        process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.USERS,
         appointment.providerId
       ) : Promise.resolve(null)
@@ -229,12 +255,12 @@ export async function DELETE(
     // }
 
     // Check if Appwrite is configured
-    if (!process.env.APPWRITE_PROJECT_ID) {
+    if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
       return NextResponse.json({ error: 'Appwrite not configured' }, { status: 503 })
     }
 
     await databases.deleteDocument(
-      process.env.APPWRITE_DATABASE_ID || 'hospital_main',
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.APPOINTMENTS,
       params.id
     )
