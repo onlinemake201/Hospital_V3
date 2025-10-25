@@ -6,6 +6,7 @@ import { MobileNav } from '@/components/mobile-nav'
 import AuthGuard from '@/components/auth-guard'
 import Link from 'next/link'
 import { LogOut } from 'lucide-react'
+import { authHelpers } from '@/lib/appwrite'
 
 interface ProtectedLayoutClientProps {
   children: React.ReactNode
