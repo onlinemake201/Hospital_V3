@@ -19,16 +19,16 @@ export default function GlobalError({
                 </svg>
               </div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                Critical Error
+                Kritischer Fehler
               </h1>
               <p className="text-slate-600 dark:text-slate-400 mb-6">
-                A critical error occurred. Please reload the page.
+                Es ist ein kritischer Fehler aufgetreten. Bitte laden Sie die Seite neu.
               </p>
               <button
                 onClick={reset}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
               >
-                Reload page
+                Seite neu laden
               </button>
             </div>
           </div>
