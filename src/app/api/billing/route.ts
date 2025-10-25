@@ -14,9 +14,13 @@ async function updateInvoiceStatus(invoice: any) {
   const dueDate = new Date(invoice.dueDate)
   const today = new Date()
   
+  // Reset time to start of day for accurate comparison
+  today.setHours(0, 0, 0, 0)
+  dueDate.setHours(0, 0, 0, 0)
+  
   let newStatus = invoice.status
   
-  // Automatische Statuslogik
+  // Automatische Statuslogik - Reihenfolge ist wichtig!
   if (balance <= 0) {
     newStatus = 'paid'
   } else if (balance < amount) {
@@ -24,18 +28,21 @@ async function updateInvoiceStatus(invoice: any) {
   } else if (today > dueDate) {
     newStatus = 'overdue'
   } else {
-    newStatus = 'pending'
+    newStatus = 'sent' // Frontend expects 'sent' for outstanding invoices
   }
   
   console.log('🔄 Status update check:', {
     invoiceId: invoice.$id,
+    invoiceNo: invoice.invoiceNo,
     currentStatus: invoice.status,
     newStatus: newStatus,
     balance: balance,
     amount: amount,
     dueDate: dueDate.toISOString(),
     today: today.toISOString(),
-    isOverdue: today > dueDate
+    isOverdue: today > dueDate,
+    isPaid: balance <= 0,
+    isPartial: balance < amount && balance > 0
   })
   
   // Status nur aktualisieren wenn sich etwas geändert hat

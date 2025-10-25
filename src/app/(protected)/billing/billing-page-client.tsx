@@ -17,8 +17,7 @@ import {
   Clock,
   CreditCard,
   Eye,
-  Trash2,
-  RefreshCw
+  Trash2
 } from 'lucide-react'
 
 interface Invoice {
@@ -76,20 +75,15 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     getCurrency().then(setCurrency)
   }, [])
 
-  // Add manual refresh function
-  const handleRefresh = () => {
-    console.log('🔄 Manual refresh triggered')
-    fetchInvoices(true)
-  }
+  // Automatic refresh every 30 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Auto-refresh triggered')
+      fetchInvoices()
+    }, 30000) // 30 seconds
 
-  // Removed auto-refresh to prevent duplicate data
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     fetchInvoices()
-  //   }, 30000) // 30 seconds
-
-  //   return () => clearInterval(interval)
-  // }, [])
+    return () => clearInterval(interval)
+  }, [])
 
   const fetchInvoices = async (showLoading = false) => {
     if (showLoading) {
@@ -224,6 +218,18 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
       } else {
         group.status = 'outstanding'
       }
+      
+      console.log('📊 Customer group status:', {
+        customerName: group.customerName,
+        invoiceCount: group.invoices.length,
+        status: group.status,
+        invoices: group.invoices.map(inv => ({
+          id: inv.$id,
+          status: inv.status,
+          balance: inv.balance,
+          dueDate: inv.dueDate
+        }))
+      })
     })
 
     // Filter by status
@@ -337,14 +343,6 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
             <p className="text-slate-600 dark:text-slate-400 mt-1 sm:mt-2 text-sm sm:text-base">Manage invoices and payments</p>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              className="rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 sm:px-6 py-2 sm:py-3 font-medium text-center min-h-[44px] flex items-center justify-center gap-2 hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
             <Link 
               href="/billing/new"
               className="rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 sm:px-6 py-2 sm:py-3 font-medium text-center min-h-[44px] flex items-center justify-center gap-2 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -573,11 +571,11 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
                                   invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
                                   invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                                   invoice.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  invoice.status === 'sent' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                  invoice.status === 'sent' || invoice.status === 'pending' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
                                   'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
                                 }`}>
                                   {invoice.status === 'partial' ? 'Partially Paid' :
-                                   invoice.status === 'sent' ? 'Outstanding' :
+                                   invoice.status === 'sent' || invoice.status === 'pending' ? 'Outstanding' :
                                    invoice.status}
                                 </span>
                               </td>

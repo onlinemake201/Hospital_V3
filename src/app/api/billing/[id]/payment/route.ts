@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     // Update invoice balance
     const newBalance = invoice.balance - amount
-    const newStatus = newBalance <= 0 ? 'paid' : (newBalance < invoice.amount ? 'partial' : invoice.status)
+    const newStatus = newBalance <= 0 ? 'paid' : (newBalance < invoice.amount ? 'partial' : 'sent')
 
     console.log('💰 Payment processed:', {
       invoiceId: id,
