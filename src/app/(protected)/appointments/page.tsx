@@ -17,7 +17,6 @@ import {
   ChevronDown,
   Eye, 
   Edit, 
-  Trash2, 
   Download, 
   RefreshCw, 
   XCircle,
@@ -63,9 +62,6 @@ export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   
   const toggleGroup = (patientName: string) => {
@@ -506,30 +502,17 @@ export default function AppointmentsPage() {
                       onMouseMove={handleMouseMove}
                     >
                       <div className="p-2 h-full flex flex-col justify-between overflow-hidden relative">
-                        {/* Action Buttons - Top Right */}
-                        <div className="absolute top-2 right-2 flex gap-1 z-10">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/appointments/${appointment.id}`)
-                            }}
-                            className="text-blue-600 hover:text-blue-800 transition-colors"
-                            title="View Appointment"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setAppointmentToDelete(appointment)
-                              setShowDeleteModal(true)
-                            }}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                            title="Delete Appointment"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
+                        {/* View Button - Top Right */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/appointments/${appointment.id}`)
+                          }}
+                          className="absolute top-2 right-2 text-blue-600 hover:text-blue-800 transition-colors z-10"
+                          title="View Appointment"
+                        >
+                          <Eye className="w-3 h-3" />
+                        </button>
                         
                         {/* Top Section */}
                         <div className="flex flex-col pr-6">
@@ -1085,29 +1068,16 @@ export default function AppointmentsPage() {
 
                             {/* Action */}
                             <div className="col-span-1 text-center">
-                              <div className="flex gap-1 justify-center">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(`/appointments/${appointment.id}`)
-                                  }}
-                                  className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-                                  title="View Details"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setAppointmentToDelete(appointment)
-                                    setShowDeleteModal(true)
-                                  }}
-                                  className="inline-flex items-center justify-center w-8 h-8 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-600 dark:text-red-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
-                                  title="Delete Appointment"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  router.push(`/appointments/${appointment.id}`)
+                                }}
+                                className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-300 rounded-lg transition-all duration-200 hover:scale-105 shadow-sm"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1124,48 +1094,6 @@ export default function AppointmentsPage() {
     )
   }
 
-  const handleDeleteAppointment = async () => {
-    if (!appointmentToDelete) return
-
-    setIsDeleting(true)
-    try {
-      console.log('🗑️ Deleting appointment:', appointmentToDelete.id)
-      
-      const response = await fetch(`/api/appointments/${appointmentToDelete.id}`, {
-        method: 'DELETE'
-      })
-
-      console.log('🗑️ Delete response:', response.status, response.ok)
-
-      if (response.ok) {
-        setAppointments(prev => {
-          if (!Array.isArray(prev)) return []
-          return prev.filter(apt => apt.id !== appointmentToDelete.id)
-        })
-        setFilteredAppointments(prev => {
-          if (!Array.isArray(prev)) return []
-          return prev.filter(apt => apt.id !== appointmentToDelete.id)
-        })
-        setShowDeleteModal(false)
-        setAppointmentToDelete(null)
-        
-        // Use alert instead of toast for better reliability
-        alert('Appointment deleted successfully')
-        
-        // Refresh appointments to ensure consistency
-        await fetchAppointments()
-      } else {
-        const errorData = await response.json()
-        console.error('🗑️ Delete error:', errorData)
-        alert(`Failed to delete appointment: ${errorData.error || 'Unknown error'}`)
-      }
-    } catch (error) {
-      console.error('🗑️ Error deleting appointment:', error)
-      alert('Failed to delete appointment: Network error')
-    } finally {
-      setIsDeleting(false)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -1348,38 +1276,6 @@ export default function AppointmentsPage() {
         </div>
       )}
 
-      {/* Delete Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-              Delete Appointment
-            </h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-6">
-                Are you sure you want to delete this appointment? This action cannot be undone.
-              </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false)
-                  setAppointmentToDelete(null)
-                }}
-                className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAppointment}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Modern Toast Container */}
       <ToastContainer />
