@@ -1,7 +1,7 @@
 // Server-side user management using Appwrite MCP
 // This file should only be imported in server-side code (API routes)
 
-import { databases, COLLECTIONS, ID } from './appwrite'
+import { databases, COLLECTIONS, ID, QueryHelpers } from './appwrite'
 
 /**
  * Creates a new Appwrite user account and stores profile in database
@@ -89,7 +89,7 @@ export async function ensureInitialUsers() {
       const exists = await databases.listDocuments(
         process.env.APPWRITE_DATABASE_ID || 'hospital_main',
         COLLECTIONS.USERS,
-        [`equal("email", "${u.email}")`]
+        [QueryHelpers.equal('email', u.email)]
       )
       
       if (exists.total > 0) continue
