@@ -56,6 +56,7 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
   const [error, setError] = useState<string | null>(null)
   const [currency, setCurrency] = useState('CHF')
   const [mounted, setMounted] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -226,6 +227,51 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
     }
   }
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!invoice) return
+    
+    setIsUpdatingStatus(true)
+    try {
+      console.log('🔄 Updating invoice status:', invoice.$id, 'to:', newStatus)
+      
+      const response = await fetch(`/api/billing/${invoice.$id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Status updated successfully:', data)
+        
+        // Update local state immediately
+        setInvoice(prev => prev ? {
+          ...prev,
+          status: newStatus,
+          balance: newStatus === 'paid' ? 0 : prev.balance
+        } : null)
+        
+        showToast(`Invoice status updated to ${getStatusText(newStatus)}`, 'success')
+        
+        // Refresh data to ensure consistency
+        setTimeout(() => {
+          fetchInvoice()
+        }, 1000)
+      } else {
+        const error = await response.json()
+        console.error('❌ Error updating status:', error)
+        showToast(error.error || 'Failed to update status', 'error')
+      }
+    } catch (error: any) {
+      console.error('❌ Error updating status:', error)
+      showToast('Error updating status', 'error')
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
   const getStatusText = (status: string) => {
     switch (status) {
       case 'paid': return 'Paid'
@@ -311,8 +357,25 @@ export default function InvoiceDetailClient({ invoiceId }: InvoiceDetailClientPr
                     Created on {new Date(invoice.issueDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div className={`px-4 py-2 rounded-lg font-medium ${getStatusColor(invoice.status)}`}>
-                  {getStatusText(invoice.status)}
+                <div className="relative">
+                  <select
+                    value={invoice.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    disabled={isUpdatingStatus}
+                    className={`px-4 py-2 rounded-lg font-medium border-0 cursor-pointer transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:outline-none ${getStatusColor(invoice.status)} ${
+                      isUpdatingStatus ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-md'
+                    }`}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                  {isUpdatingStatus && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-lg">
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    </div>
+                  )}
                 </div>
               </div>
 
