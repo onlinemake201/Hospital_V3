@@ -78,7 +78,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
   const [isChangingStatus, setIsChangingStatus] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
-  // Fetch invoices with better error handling and caching
+  // Fetch invoices with better error handling and caching - STABLE FUNCTION
   const fetchInvoices = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true)
     
@@ -115,7 +115,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     } finally {
       if (showLoading) setLoading(false)
     }
-  }, [showToast])
+  }, [showToast]) // Only depend on showToast
 
   // Smart status change handler
   const changeInvoiceStatus = useCallback(async (invoiceId: string, newStatus: string) => {
@@ -290,7 +290,7 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     })
   }, [customerGroups, searchTerm, statusFilter])
 
-  // Auto-refresh with smart timing
+  // Auto-refresh with smart timing - FIXED DEPENDENCIES
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isChangingStatus) {
@@ -302,9 +302,9 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
     }, 30000) // 30 seconds
 
     return () => clearInterval(interval)
-  }, [isChangingStatus, fetchInvoices])
+  }, [isChangingStatus]) // Only depend on isChangingStatus, not fetchInvoices
 
-  // Focus-based refresh
+  // Focus-based refresh - FIXED DEPENDENCIES
   useEffect(() => {
     const handleFocus = () => {
       console.log('🔄 Window focused, refreshing invoices...')
@@ -313,12 +313,12 @@ export default function BillingPageClientV2({ initialInvoices, currency }: Billi
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchInvoices])
+  }, []) // Empty dependency array to prevent re-registration
 
-  // Initial load
+  // Initial load - FIXED DEPENDENCIES
   useEffect(() => {
     fetchInvoices(true)
-  }, [fetchInvoices])
+  }, []) // Empty dependency array to run only once
 
   // Status badge component
   const StatusBadge = ({ status }: { status: string }) => {
