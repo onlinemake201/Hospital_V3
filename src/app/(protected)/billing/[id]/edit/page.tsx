@@ -150,6 +150,8 @@ export default function EditInvoicePage() {
         throw new Error(error.error || 'Failed to update invoice')
       }
 
+      console.log('✅ Invoice updated successfully, redirecting to billing page')
+      
       // Redirect to billing page after successful update
       router.push('/billing')
     } catch (error: any) {

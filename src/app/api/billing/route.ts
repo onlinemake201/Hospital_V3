@@ -8,7 +8,7 @@ import { getCurrency } from '@/lib/system-settings'
 import { z } from 'zod'
 
 // Funktion zur automatischen Statusaktualisierung
-async function updateInvoiceStatus(invoice: any) {
+export async function updateInvoiceStatus(invoice: any) {
   const balance = Number(invoice.balance)
   const amount = Number(invoice.amount)
   const dueDate = new Date(invoice.dueDate)

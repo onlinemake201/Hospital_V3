@@ -75,6 +75,17 @@ export default function BillingPage({ initialInvoices = [] }: BillingPageProps) 
     getCurrency().then(setCurrency)
   }, [])
 
+  // Listen for page focus to refresh data when returning from edit pages
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🔄 Page focused, refreshing invoices...')
+      fetchInvoices()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
+
   // Automatic refresh every 30 seconds for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {

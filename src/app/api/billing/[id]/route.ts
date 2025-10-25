@@ -147,12 +147,26 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Appwrite not configured' }, { status: 503 })
     }
 
+    console.log('📝 Updating invoice:', id, 'with data:', body)
+
     const updatedInvoice = await databases.updateDocument(
       process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'hospital_main',
       COLLECTIONS.INVOICES,
       id,
       body
     )
+
+    console.log('✅ Invoice updated successfully:', updatedInvoice)
+
+    // Trigger status update after invoice update
+    try {
+      const { updateInvoiceStatus } = await import('@/app/api/billing/route')
+      const newStatus = await updateInvoiceStatus(updatedInvoice)
+      console.log('🔄 Status updated after invoice edit:', newStatus)
+    } catch (statusError) {
+      console.warn('Could not update status after invoice edit:', statusError)
+      // Continue anyway - invoice is still updated
+    }
 
     return NextResponse.json({ invoice: updatedInvoice })
   } catch (error: any) {
